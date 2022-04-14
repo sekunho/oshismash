@@ -1,0 +1,28 @@
+[package]
+name = "vtubersmash"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# HTTP
+axum = "0.5"
+hyper = "0.14"
+
+# Middleware
+tower = "0.4"
+
+# async
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# Template
+maud = { git = "https://github.com/sekunho/maud", branch = "main", features = [ "axum" ] }
+
+# Database
+tokio-postgres = "0.7"
+deadpool-postgres = { version = "0.10", features = ["serde"] }
+
+# TODO: Add native-tls later
