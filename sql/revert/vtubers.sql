@@ -1,4 +1,4 @@
--- Revert vtubersmash:vtubers from pg
+-- Revert oshismash:vtubers from pg
 
 BEGIN;
   DROP SCHEMA app CASCADE;

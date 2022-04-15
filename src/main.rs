@@ -2,7 +2,7 @@
 
 #[tokio::main]
 async fn main() {
-    if let Err(e) = vtubersmash::run().await {
+    if let Err(e) = oshismash::run().await {
         eprintln!("{}", e);
     };
 }

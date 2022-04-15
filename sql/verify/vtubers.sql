@@ -1,4 +1,4 @@
--- Verify vtubersmash:vtubers on pg
+-- Verify oshismash:vtubers on pg
 
 BEGIN;
 
