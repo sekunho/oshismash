@@ -1,5 +1,5 @@
 {
-  description = "Figure out how many people would smash your oshis!";
+  description = "Smash or Pass: VTuber Edition";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
