@@ -3,26 +3,45 @@
 BEGIN;
   CREATE SCHEMA app;
 
-  -- I'm only doing the top vtuber companies + popular indie vtubers for now.
-  -- I am but one person.
-  CREATE TYPE app.ORIGIN AS ENUM ('vshojo', 'hololive', 'nijisanji', 'indie');
-
-  -- TODO: Fill this out
-  CREATE TYPE app.CATEGORY AS ENUM ('holomyth');
+  -- Enums
+  CREATE TYPE app.REGION AS ENUM ('cn', 'en', 'jp', 'none');
   CREATE TYPE app.ACTION AS ENUM ('smashed', 'passed');
 
+  -- Tables
+  CREATE TABLE app.orgs (
+    org_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name   TEXT NOT NULL
+  );
+
+  CREATE TABLE app.groups (
+    group_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    org_id   INTEGER REFERENCES app.orgs NOT NULL,
+    name     TEXT NOT NULL
+  );
+
   CREATE TABLE app.vtubers (
-    vtuber_id   BIGINT GENERATED ALWAYS AS IDENTITY,
+    vtuber_id   BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     name        TEXT NOT NULL,
     description TEXT NOT NULL,
-    origin      app.origin NOT NULL,
     img         TEXT,
+
+    org_id      INTEGER REFERENCES app.orgs NOT NULL,
+    group_id    INTEGER REFERENCES app.groups,
+    region      app.REGION NOT NULL,
+
     smashes     BIGINT NOT NULL DEFAULT 0 CHECK (smashes >= 0),
     passes      BIGINT NOT NULL DEFAULT 0 CHECK (passes >= 0)
   );
 
+  -- Functions
   CREATE FUNCTION app.vote(vtuber_id BIGINT, action app.ACTION)
-    RETURNS TABLE (vtuber_id BIGINT, smashes BIGINT, passes BIGINT)
+    RETURNS TABLE (
+      vtuber_id BIGINT,
+      name TEXT,
+      img TEXT,
+      smashes BIGINT,
+      passes BIGINT
+    )
     LANGUAGE SQL
     AS $$
       UPDATE app.vtubers
@@ -42,7 +61,12 @@ BEGIN;
           END
         )
       WHERE vtubers.vtuber_id = vtuber_id
-      RETURNING vtubers.vtuber_id, vtubers.smashes, vtubers.passes;
+      RETURNING
+        vtubers.vtuber_id,
+        vtubers.name,
+        vtubers.img,
+        vtubers.smashes,
+        vtubers.passes;
     $$;
 
     COMMENT ON FUNCTION app.vote IS

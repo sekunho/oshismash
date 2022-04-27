@@ -1,4 +1,5 @@
 %syntax-version=1.0.0
 %project=oshismash
 
+extensions 2022-04-27T08:38:08Z sekun <sekun@ichi> # Adds the necessary DB extensions
 vtubers 2022-04-14T09:48:25Z sekun <sekun@nixos> # Schema to store vtuber data

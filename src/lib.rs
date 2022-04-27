@@ -1,11 +1,13 @@
 mod controllers;
+mod views;
 
 use std::net::SocketAddr;
 use axum::{Router, routing};
 
 pub async fn run() -> Result<(), hyper::Error> {
     let app = Router::new()
-        .route("/", routing::get(controllers::test));
+        .route("/", routing::get(controllers::root))
+        .route("/assets/:name", routing::get(controllers::assets::show));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
 
