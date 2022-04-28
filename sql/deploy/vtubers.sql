@@ -38,6 +38,7 @@ BEGIN;
     RETURNS TABLE (
       vtuber_id BIGINT,
       name TEXT,
+      description TEXT,
       img TEXT,
       smashes BIGINT,
       passes BIGINT
@@ -64,6 +65,7 @@ BEGIN;
       RETURNING
         vtubers.vtuber_id,
         vtubers.name,
+        vtubers.description,
         vtubers.img,
         vtubers.smashes,
         vtubers.passes;
@@ -71,4 +73,17 @@ BEGIN;
 
     COMMENT ON FUNCTION app.vote IS
       'Votes on a VTuber depending on what the action is.';
+
+    CREATE FUNCTION app.get_current_and_next(vtuber_id BIGINT)
+      RETURNS TABLE (
+        vtuber_id BIGINT,
+        name TEXT,
+        description TEXT,
+        img TEXT,
+        smashes BIGINT,
+        passes BIGINT
+      )
+      LANGUAGE SQL
+      AS $$
+      $$;
 COMMIT;

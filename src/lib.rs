@@ -1,13 +1,25 @@
 mod controllers;
+
+// Templates/Markup
 mod views;
+// "Business logic" of oshismash
+mod oshismash;
 
-use std::net::SocketAddr;
-use axum::{Router, routing};
+// DB-related stuff
+pub mod db;
 
-pub async fn run() -> Result<(), hyper::Error> {
+use std::{net::SocketAddr, sync::Arc};
+use axum::{Router, routing, Extension};
+
+pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
+    let arc_db_handle = Arc::new(db_handle);
+
     let app = Router::new()
-        .route("/", routing::get(controllers::root))
-        .route("/assets/:name", routing::get(controllers::assets::show));
+        .route("/", routing::get(controllers::vote::show))
+        .route("/vote", routing::post(controllers::vote::vote))
+        .route("/rpc/vote/:id", routing::post(controllers::vote::rpc_vote))
+        .route("/assets/:name", routing::get(controllers::assets::show))
+        .layer(Extension(arc_db_handle));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
 
