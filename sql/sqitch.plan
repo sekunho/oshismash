@@ -3,3 +3,4 @@
 
 extensions 2022-04-27T08:38:08Z sekun <sekun@ichi> # Adds the necessary DB extensions
 vtubers 2022-04-14T09:48:25Z sekun <sekun@nixos> # Schema to store vtuber data
+guests 2022-04-30T04:57:20Z sekun <sekun@ichi> # For people that don't want to register

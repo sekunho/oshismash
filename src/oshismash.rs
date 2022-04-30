@@ -1,11 +1,12 @@
 pub mod vtubers;
+pub mod guests;
 
 use axum::response::{IntoResponse, Response};
 use hyper::StatusCode;
-use serde::Serialize;
 
 use crate::db;
 
+#[derive(Debug)]
 pub enum Error {
     UnableToQuery(tokio_postgres::Error),
     FailedToSetupDb(db::Error),

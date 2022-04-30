@@ -7,6 +7,7 @@ pub struct Handle {
     pub pool: Pool,
 }
 
+#[derive(Debug)]
 pub enum Error {
     FailedToBuildPool(deadpool_postgres::BuildError),
     FailedToGetClient(deadpool_postgres::PoolError),

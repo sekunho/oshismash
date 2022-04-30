@@ -10,21 +10,37 @@ use serde_json::{Value, json};
 
 use crate::oshismash::vtubers::VoteEntry;
 use crate::{views, db};
-use crate::oshismash::{self, vtubers};
+use crate::oshismash::{self, vtubers, guests};
 
 /// Main page for the smash or pass
-pub async fn show(jar: cookie::CookieJar) -> impl IntoResponse {
+pub async fn show(
+    Extension(db_handle): Extension<Arc<db::Handle>>,
+    jar: cookie::CookieJar
+) -> impl IntoResponse {
+    // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
     // Cookies:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-    let id = Cookie::parse("id=bar; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647")
-        .unwrap();
-
-    let scope = Cookie::parse("scope=all; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647")
-        .unwrap();
 
     let jar = match jar.get("scope").and(jar.get("id")) {
         Some(_) => jar,
-        None => jar.add(id).add(scope),
+        None => {
+            // TODO: Refactor cause ugly
+            // TODO: REMOVE UNWRAPS
+            let client = db_handle.pool.get().await.unwrap();
+            let guest = guests::create_guest(&client).await.unwrap();
+
+            let id = format!(
+                "id={}; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647",
+                guest.guest_id,
+            );
+
+            let scope = "scope=all; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647";
+
+            let id = Cookie::parse(id).unwrap();
+            let scope = Cookie::parse(scope).unwrap();
+
+            jar.add(id).add(scope)
+        }
     };
 
     println!("{:?}", jar);
@@ -44,11 +60,19 @@ pub async fn vote(
     Form(vote_entry): Form<VoteEntry>,
     jar: cookie::CookieJar,
 ) -> response::Result<Markup, oshismash::Error> {
-    let client = db_handle.get_client().await?;
-    let vtuber = vtubers::vote(&client, vote_entry).await?;
 
-    println!("{:?}", jar);
-    println!("{:?}", vtuber);
+    if let Some(cookie) = jar.get("id") {
+        println!("{}", cookie.value());
+
+        let foo = cookie.value();
+
+    }
+
+    // let client = db_handle.get_client().await?;
+    // let vtuber = vtubers::vote(&client, vote_entry).await?;
+
+    // println!("{:?}", jar);
+    // println!("{:?}", vtuber);
 
     Ok(html! { h1 { ("hey") } })
 }
