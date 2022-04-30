@@ -1,6 +1,7 @@
 -- Deploy oshismash:guests to pg
 
 BEGIN;
+  CREATE SCHEMA app;
 
   CREATE TABLE app.guests(
     guest_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -12,7 +13,7 @@ BEGIN;
     RETURNS BOOLEAN
     LANGUAGE SQL
     AS $$
-      SELECT * FROM
+      SELECT exists(SELECT * FROM app.guests WHERE guest_id = $1);
     $$;
 
   CREATE FUNCTION app.create_guest()
