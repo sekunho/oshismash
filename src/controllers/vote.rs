@@ -16,10 +16,10 @@ use crate::oshismash::{self, vtubers};
 pub async fn show(jar: cookie::CookieJar) -> impl IntoResponse {
     // Cookies:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-    let id = Cookie::parse("id=bar; HttpOnly; Secure; SameSite=Strict")
+    let id = Cookie::parse("id=bar; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647")
         .unwrap();
 
-    let scope = Cookie::parse("scope=all; HttpOnly; Secure; SameSite=Strict")
+    let scope = Cookie::parse("scope=all; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647")
         .unwrap();
 
     let jar = match jar.get("scope").and(jar.get("id")) {
@@ -29,9 +29,12 @@ pub async fn show(jar: cookie::CookieJar) -> impl IntoResponse {
 
     println!("{:?}", jar);
 
-    views::root::render(
-        "Oshi Smash: Smash or Pass Your Oshis!",
-        views::vote::render()
+    (
+        jar,
+        views::root::render(
+            "Oshi Smash: Smash or Pass Your Oshis!",
+            views::vote::render()
+        )
     )
 }
 
