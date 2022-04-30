@@ -5,8 +5,25 @@ use serde::{Serialize, Deserialize};
 
 use crate::oshismash;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct VoteEntry {
+    pub vtuber_id: String,
+    pub guest_id: String,
+    pub action: Action,
+}
+
+impl VoteEntry {
+    pub fn from(details: VoteDetails, guest_id: String) -> VoteEntry {
+        VoteEntry {
+            vtuber_id: details.vtuber_id,
+            guest_id,
+            action: details.action,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VoteDetails {
     pub vtuber_id: String,
     pub action: Action,
 }
@@ -56,14 +73,24 @@ pub async fn vote(client: &Object, vote_entry: VoteEntry) -> Result<CardStack, o
         Action::Passed => "passed",
     };
 
+    println!("{:?}", vote_entry);
+
     let vote_statement = client.prepare_typed(
-        "SELECT * FROM app.vote($1 :: BIGINT, $2 :: app.ACTION)",
-        &[Type::TEXT, Type::TEXT]
-    ).await?;
+        "SELECT * FROM app.vote($1 :: UUID, $2 :: BIGINT, $3 :: app.ACTION)",
+        &[Type::TEXT, Type::TEXT, Type::TEXT]
+    ).await.map_err(|e| {
+        println!("{e}");
+        oshismash::Error::from(e)
+    })?;
 
     let prev = VTuber::from(
-        client.query_one(&vote_statement,
-        &[&vote_entry.vtuber_id, &action]).await?
+        client.query_one(
+            &vote_statement,
+            &[&vote_entry.guest_id, &vote_entry.vtuber_id, &action]
+        ).await.map_err(|e| {
+            println!("{e}");
+            oshismash::Error::from(e)
+        })?
     );
 
     let card_stack = CardStack {

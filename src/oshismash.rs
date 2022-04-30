@@ -10,6 +10,7 @@ use crate::db;
 pub enum Error {
     UnableToQuery(tokio_postgres::Error),
     FailedToSetupDb(db::Error),
+    InvalidGuest,
 }
 
 impl From<tokio_postgres::Error> for Error {
@@ -43,6 +44,10 @@ impl IntoResponse for Error {
             Error::FailedToSetupDb(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "E002: Failed to setup database connection",
+            ),
+            Error::InvalidGuest => (
+                StatusCode::UNAUTHORIZED,
+                "E003: Not allowed to access this",
             ),
         }.into_response()
     }

@@ -10,17 +10,23 @@ mod oshismash;
 pub mod db;
 
 use std::{net::SocketAddr, sync::Arc};
-use axum::{Router, routing, Extension};
+use axum::{Router, routing};
+use tower::ServiceBuilder;
+use tower_http::add_extension::AddExtensionLayer;
 
 pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
-    let arc_db_handle = Arc::new(db_handle);
+    let db_handle = Arc::new(db_handle);
+
+    // TODO: Add cookie stuff to middleware
+    let middleware = ServiceBuilder::new()
+        .layer(AddExtensionLayer::new(db_handle));
 
     let app = Router::new()
         .route("/", routing::get(controllers::vote::show))
         .route("/vote", routing::post(controllers::vote::vote))
-        .route("/rpc/vote/:id", routing::post(controllers::vote::rpc_vote))
+        // .route("/rpc/vote", routing::post(controllers::vote::rpc_vote))
         .route("/assets/:name", routing::get(controllers::assets::show))
-        .layer(Extension(arc_db_handle));
+        .layer(middleware.into_inner());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
 

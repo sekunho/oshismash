@@ -8,7 +8,7 @@ use hyper::StatusCode;
 use maud::{Markup, html};
 use serde_json::{Value, json};
 
-use crate::oshismash::vtubers::VoteEntry;
+use crate::oshismash::vtubers::{VoteEntry, VoteDetails};
 use crate::{views, db};
 use crate::oshismash::{self, vtubers, guests};
 
@@ -43,8 +43,6 @@ pub async fn show(
         }
     };
 
-    println!("{:?}", jar);
-
     (
         jar,
         views::root::render(
@@ -57,24 +55,28 @@ pub async fn show(
 /// Handles the voting for a VTuber
 pub async fn vote(
     Extension(db_handle): Extension<Arc<db::Handle>>,
-    Form(vote_entry): Form<VoteEntry>,
+    Form(vote_details): Form<VoteDetails>,
     jar: cookie::CookieJar,
 ) -> response::Result<Markup, oshismash::Error> {
 
+    // TODO: Move to middleware
     if let Some(cookie) = jar.get("id") {
-        println!("{}", cookie.value());
+        let guest_id = cookie.value();
+        let client = db_handle.get_client().await?;
 
-        let foo = cookie.value();
+        // Check if it's a valid guest ID
+        if guests::is_valid(&client, guest_id).await? {
+            let vtuber = vtubers::vote(&client, VoteEntry::from(vote_details, guest_id.to_string())).await?;
 
+            println!("{:?}", vtuber);
+
+            Ok(html! { ("valid!") })
+        } else {
+            Err(oshismash::Error::InvalidGuest)
+        }
+    } else {
+        Err(oshismash::Error::InvalidGuest)
     }
-
-    // let client = db_handle.get_client().await?;
-    // let vtuber = vtubers::vote(&client, vote_entry).await?;
-
-    // println!("{:?}", jar);
-    // println!("{:?}", vtuber);
-
-    Ok(html! { h1 { ("hey") } })
 }
 
 // TODO: Later

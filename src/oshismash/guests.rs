@@ -1,5 +1,5 @@
 use deadpool_postgres::Object;
-use tokio_postgres::Row;
+use tokio_postgres::{Row, types::Type};
 use crate::oshismash;
 
 #[derive(Debug)]
@@ -15,18 +15,34 @@ impl From<Row> for Guest {
     }
 }
 
+/// Creates an anonymous guest
 pub async fn create_guest(client: &Object) -> Result<Guest, oshismash::Error> {
-    let row = client.query_one("SELECT * FROM app.create_guest()", &[]).await?;
+    let statement = "SELECT * FROM app.create_guest()";
+    let statement = client.prepare_typed(statement, &[]).await?;
+    let row = client.query_one(&statement, &[]).await?;
     let guest = Guest::from(row);
 
     Ok(guest)
 }
 
-pub async fn exists(client: &Object, guest_id: String) -> Result<bool, oshismash::Error> {
+/// Checks if the guest token is valid (if it exists in the DB).
+pub async fn is_valid(client: &Object, guest_id: &str) -> Result<bool, oshismash::Error> {
     let statement = "SELECT exists(SELECT * FROM app.guests WHERE guest_id = $1 :: UUID)";
-    let row = client.query_one(statement, &[&guest_id]).await;
+    let statement = client.prepare_typed(statement, &[Type::TEXT]).await?;
 
-    println!("{:?}", row);
+    let is_valid: bool = client
+        .query_one(&statement, &[&guest_id])
+        .await
+        .map_err(|e| {
+            match e.code() {
+                Some(other_e) => match other_e.code() {
+                    "22P02" => oshismash::Error::InvalidGuest,
+                    _       => oshismash::Error::UnableToQuery(e)
+                }
+                None => oshismash::Error::UnableToQuery(e)
+            }
+        })?
+        .get("exists");
 
-    Ok(true)
+    Ok(is_valid)
 }
