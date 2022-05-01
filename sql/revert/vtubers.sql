@@ -2,6 +2,10 @@
 
 BEGIN;
   DROP FUNCTION app.get_current_and_next;
+  DROP FUNCTION app.get_metrics;
+  DROP FUNCTION app.get_vote_stack_from_current;
+  DROP FUNCTION app.get_vote_stack_from_previous;
+  DROP FUNCTION app.get_vote_stack;
   DROP FUNCTION app.vote;
 
   -- DROP INDEX guest_id_index;

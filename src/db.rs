@@ -1,5 +1,5 @@
 use axum::response::{IntoResponse, Response};
-use deadpool_postgres::{ManagerConfig, Pool, RecyclingMethod, Manager, Object};
+use deadpool_postgres::{Manager, ManagerConfig, Object, Pool, RecyclingMethod};
 use hyper::StatusCode;
 use tokio_postgres::NoTls;
 
@@ -27,7 +27,10 @@ impl From<deadpool_postgres::PoolError> for Error {
 
 impl IntoResponse for Error {
     fn into_response(self: Error) -> Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, "500 INTERNAL SERVER ERROR")
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "500 INTERNAL SERVER ERROR",
+        )
             .into_response()
     }
 }
@@ -44,14 +47,14 @@ impl Handle {
             .port(5432);
 
         let manager_config = ManagerConfig {
-            recycling_method: RecyclingMethod::Fast
+            recycling_method: RecyclingMethod::Fast,
         };
 
         let manager = Manager::from_config(pg_config, NoTls, manager_config);
 
         let pool = Pool::builder(manager).max_size(22).build()?;
 
-        Ok(Handle { pool, })
+        Ok(Handle { pool })
     }
 
     pub async fn get_client(&self) -> Result<Object, Error> {

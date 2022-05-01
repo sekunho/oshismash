@@ -12,6 +12,8 @@ axum = "0.5"
 hyper = "0.14"
 axum-extra = { version = "0.3", features = [ "cookie" ] }
 
+cookie = "0.16"
+
 # Serialization/Deserialization
 serde = "1.0"
 serde_json = "1.0"
@@ -28,7 +30,7 @@ futures = "0.3"
 maud = { git = "https://github.com/sekunho/maud", branch = "main", features = [ "axum" ] }
 
 # Database
-tokio-postgres = "0.7"
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 deadpool-postgres = { version = "0.10", features = ["serde"] }
 
 # TODO: Add native-tls later

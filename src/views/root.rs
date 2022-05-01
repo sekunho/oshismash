@@ -1,9 +1,14 @@
-use maud::{Markup, DOCTYPE, html};
+use maud::{html, Markup, DOCTYPE};
 
 pub fn render(title: &str, content: Markup) -> Markup {
     html! {
         (header(title))
-        (content)
+
+        body class="bg-gray-100 dark:bg-su-dark-bg-1 flex flex-col" {
+            main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col flex-1" {
+                (content)
+            }
+        }
     }
 }
 

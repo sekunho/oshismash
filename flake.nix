@@ -17,6 +17,8 @@
           cargo-watch
           rustc
           rust-analyzer
+          rustfmt
+
           nodePackages.tailwindcss
 
           sqitchPg

@@ -1,6 +1,6 @@
-use deadpool_postgres::Object;
-use tokio_postgres::{Row, types::Type};
 use crate::oshismash;
+use deadpool_postgres::Object;
+use tokio_postgres::{types::Type, Row};
 
 #[derive(Debug)]
 pub struct Guest {
@@ -33,14 +33,12 @@ pub async fn is_valid(client: &Object, guest_id: &str) -> Result<bool, oshismash
     let is_valid: bool = client
         .query_one(&statement, &[&guest_id])
         .await
-        .map_err(|e| {
-            match e.code() {
-                Some(other_e) => match other_e.code() {
-                    "22P02" => oshismash::Error::InvalidGuest,
-                    _       => oshismash::Error::UnableToQuery(e)
-                }
-                None => oshismash::Error::UnableToQuery(e)
-            }
+        .map_err(|e| match e.code() {
+            Some(other_e) => match other_e.code() {
+                "22P02" => oshismash::Error::InvalidGuest,
+                _ => oshismash::Error::UnableToQuery(e),
+            },
+            None => oshismash::Error::UnableToQuery(e),
         })?
         .get("exists");
 

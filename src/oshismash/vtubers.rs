@@ -1,103 +1,189 @@
-use deadpool_postgres::Object;
-use tokio_postgres::Row;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio_postgres::types::Type;
-use serde::{Serialize, Deserialize};
 
-use crate::oshismash;
+use crate::oshismash::vote::Stat;
 
 #[derive(Debug)]
-pub struct VoteEntry {
-    pub vtuber_id: String,
-    pub guest_id: String,
-    pub action: Action,
+pub enum Error {
+    ParseFailed,
+    NoData,
+    FailedToPrepareStatement,
+    FailedToQuery,
+    FailedToParseValue,
 }
 
-impl VoteEntry {
-    pub fn from(details: VoteDetails, guest_id: String) -> VoteEntry {
-        VoteEntry {
-            vtuber_id: details.vtuber_id,
-            guest_id,
-            action: details.action,
+impl From<serde_json::Error> for Error {
+    fn from(_: serde_json::Error) -> Self {
+        // TODO: Maybe make the error more specific?
+        Error::ParseFailed
+    }
+}
+
+/// The resulting intermediary type when parsing the DB's JSON data.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DbStack {
+    current: Option<VTuber>,
+    results: Option<Stat>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Stack {
+    NoPrev { current: VTuber },
+    NoCurrent { prev_result: Stat },
+    HasBoth { prev_result: Stat, current: VTuber },
+}
+
+impl Stack {
+    pub fn get_current(&self) -> Option<&VTuber> {
+        match self {
+            Stack::NoPrev { current } => Some(current),
+            Stack::NoCurrent { prev_result: _ } => None,
+            Stack::HasBoth {
+                prev_result: _,
+                current,
+            } => Some(current),
+        }
+    }
+
+    pub fn get_last_voted_stat(&self) -> Option<&Stat> {
+        match self {
+            Stack::NoPrev { current: _ } => None,
+            Stack::NoCurrent { prev_result } => Some(prev_result),
+            Stack::HasBoth {
+                prev_result,
+                current: _,
+            } => Some(prev_result),
+        }
+    }
+
+    pub fn from_value(val: Value) -> Result<Stack, Error> {
+        let stack: DbStack = serde_json::from_value(val).map_err(|e| {
+            println!("{:?}", e);
+            e
+        })?;
+
+        Stack::from_db_stack(stack)
+    }
+
+    pub fn from_db_stack(db_stack: DbStack) -> Result<Stack, Error> {
+        db_stack.try_into().map_err(|e| {
+            println!("{:?}", e);
+            e
+        })
+    }
+}
+
+impl TryFrom<DbStack> for Stack {
+    type Error = Error;
+
+    fn try_from(value: DbStack) -> Result<Self, Self::Error> {
+        match value {
+            DbStack {
+                current: None,
+                results: None,
+            } => Err(Error::NoData),
+
+            DbStack {
+                current: None,
+                results: Some(results),
+            } => Ok(Stack::NoCurrent {
+                prev_result: results,
+            }),
+
+            DbStack {
+                current: Some(current),
+                results: Some(prev_result),
+            } => Ok(Stack::HasBoth {
+                prev_result,
+                current,
+            }),
+
+            DbStack {
+                current: Some(current),
+                results: None,
+            } => Ok(Stack::NoPrev { current }),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct VoteDetails {
-    pub vtuber_id: String,
-    pub action: Action,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct VTuber {
     pub id: i64,
     pub name: String,
     pub description: String,
-    pub smashes: i64,
-    pub passes: i64,
+    pub org_name: String,
+    pub next: Option<i64>,
+    pub prev: Option<i64>,
+    pub img: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct CardStack {
-    /// The VTuber that was previously voted.
-    pub prev: Option<VTuber>,
-
-    /// The current one in display.
-    pub current: Option<VTuber>,
-
-    /// Next VTuber
-    pub next: Option<VTuber>,
-}
-
-impl From<Row> for VTuber {
-    fn from(row: Row) -> VTuber {
-        VTuber {
-            id: row.get("vtuber_id"),
-            name: row.get("name"),
-            description: row.get("description"),
-            smashes: row.get("smashes"),
-            passes: row.get("passes"),
-        }
+pub async fn get_vote_stack(
+    client: &deadpool_postgres::Object,
+    last_voted_vtuber_id: Option<i64>,
+) -> Result<Stack, Error> {
+    match last_voted_vtuber_id {
+        Some(prev_id) => query_vote_stack_from_previous(client, prev_id).await,
+        None => query_vote_stack_from_current(client, 1).await,
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Action {
-    Smashed,
-    Passed,
+async fn query_vote_stack_from_previous(
+    client: &deadpool_postgres::Object,
+    prev_vtuber_id: i64,
+) -> Result<Stack, Error> {
+    let statement = client
+        .prepare_typed(
+            "SELECT * FROM app.get_vote_stack_from_previous($1::BIGINT)",
+            &[Type::INT8]
+        )
+        .await
+        .map_err(|e| {
+            println!("{:?}", e);
+            Error::FailedToPrepareStatement
+        })?;
+
+    let val: Option<Value> = client
+        .query_one(&statement, &[&prev_vtuber_id])
+        .await
+        .map_err(|_| Error::FailedToQuery)?
+        .get("get_vote_stack_from_previous");
+
+    match val {
+        Some(val) => Stack::from_value(val).map_err(|e| {
+            println!("{:?}", e);
+            e
+        }),
+        None => Err(Error::FailedToParseValue),
+    }
 }
 
-pub async fn vote(client: &Object, vote_entry: VoteEntry) -> Result<CardStack, oshismash::Error> {
-    let action = match vote_entry.action {
-        Action::Smashed => "smashed",
-        Action::Passed => "passed",
-    };
+async fn query_vote_stack_from_current(
+    client: &deadpool_postgres::Object,
+    current_vtuber_id: i64,
+) -> Result<Stack, Error> {
+    let statement = client
+        .prepare_typed(
+            "SELECT * FROM app.get_vote_stack_from_current($1)",
+            &[Type::INT8]
+        )
+        .await
+        .map_err(|e| {
+            println!("{:?}", e);
+            Error::FailedToPrepareStatement
+        })?;
 
-    println!("{:?}", vote_entry);
+    let val: Option<Value> = client
+        .query_one(&statement, &[&current_vtuber_id])
+        .await
+        .map_err(|_| Error::FailedToQuery)?
+        .get("get_vote_stack_from_current");
 
-    let vote_statement = client.prepare_typed(
-        "SELECT * FROM app.vote($1 :: UUID, $2 :: BIGINT, $3 :: app.ACTION)",
-        &[Type::TEXT, Type::TEXT, Type::TEXT]
-    ).await.map_err(|e| {
-        println!("{e}");
-        oshismash::Error::from(e)
-    })?;
-
-    let prev = VTuber::from(
-        client.query_one(
-            &vote_statement,
-            &[&vote_entry.guest_id, &vote_entry.vtuber_id, &action]
-        ).await.map_err(|e| {
-            println!("{e}");
-            oshismash::Error::from(e)
-        })?
-    );
-
-    let card_stack = CardStack {
-        prev: Some(prev),
-        current: None,
-        next: None
-    };
-
-    Ok(card_stack)
+    match val {
+        Some(val) => Stack::from_value(val).map_err(|e| {
+            println!("{:?}", e);
+            e
+        }),
+        None => Err(Error::FailedToParseValue),
+    }
 }

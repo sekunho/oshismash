@@ -1,3 +1,13 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+
+.h-screen-alt {
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+.vh-60 {
+  height: 60vh;
+  height: calc(var(--vh, 1vh) * 60);
+}
