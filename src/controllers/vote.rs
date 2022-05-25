@@ -1,14 +1,11 @@
 use std::sync::Arc;
 
-use axum::extract::Form;
-use axum::response;
 use axum::Extension;
+use axum_extra::extract::CookieJar;
 use axum_extra::extract::cookie::SameSite;
 use axum_extra::extract::cookie::{self, Cookie};
-use axum_extra::extract::CookieJar;
 use ::cookie::time::Duration;
 use maud::Markup;
-use serde_json::Value;
 
 use crate::oshismash::vote::Vote;
 use crate::oshismash::vtubers::Stack;
@@ -23,8 +20,7 @@ pub async fn index(
     // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
     // Cookies:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-    let jar = match jar.get("scope").and(jar.get("id")) {
-        Some(_) => jar,
+    let jar = match jar.get("scope").and(jar.get("id")) { Some(_) => jar,
         None => {
             // TODO: Refactor cause ugly
             // TODO: REMOVE UNWRAPS
@@ -33,7 +29,7 @@ pub async fn index(
 
             let id = format!(
                 "id={}; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647",
-                guest.guest_id,
+                guest.guest_id.0,
             );
 
             let scope = "scope=all; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647";
@@ -71,43 +67,24 @@ pub async fn index(
 /// Handles the voting for a VTuber
 pub async fn vote(
     Extension(db_handle): Extension<Arc<db::Handle>>,
-    Form(form_data): Form<Value>,
+    vote: Vote,
     jar: cookie::CookieJar,
-) -> response::Result<(CookieJar, Markup), oshismash::Error> {
-    // TODO: Move to middleware
-    if let Some(cookie) = jar.get("id") {
-        let guest_id = cookie.value();
-        let client = db_handle.get_client().await?;
+) -> Result<(CookieJar, Markup), oshismash::Error> {
+    let client = db_handle.get_client().await?;
+    let stack = oshismash::vote::vote(&client, vote).await?;
 
-        // Check if it's a valid guest ID
-        if guests::is_valid(&client, guest_id).await? {
-            match form_data {
-                Value::Object(mut form_data) => {
-                    form_data.insert("guest_id".to_string(), Value::String(guest_id.to_string()));
+    // TODO(sekun): Move to an `IntoResponse` instance
+    let template = views::root::render(
+        "Oshi Smash: Smash or Pass Your Oshis!",
+        views::vote::render(stack.clone()),
+    );
 
-                    let vote = Vote::from(Value::Object(form_data.clone()))?;
-                    let stack = oshismash::vote::vote(&client, vote).await?;
+    // TODO(sekun): Move to middleware. I think it's possible.
+    let last_voted_cookie = set_last_voted_cookie(stack.clone());
+    let current_cookie = set_current_cookie(stack.clone());
+    let jar = jar.add(last_voted_cookie).add(current_cookie);
 
-                    let template = views::root::render(
-                        "Oshi Smash: Smash or Pass Your Oshis!",
-                        views::vote::render(stack.clone()),
-                    );
-
-                    let last_voted_cookie = set_last_voted_cookie(stack.clone());
-                    let current_cookie = set_current_cookie(stack.clone());
-                    let jar = jar.add(last_voted_cookie).add(current_cookie);
-
-                    Ok((jar, template))
-                }
-
-                _ => todo!(),
-            }
-        } else {
-            Err(oshismash::Error::InvalidGuest)
-        }
-    } else {
-        Err(oshismash::Error::InvalidGuest)
-    }
+    Ok((jar, template))
 }
 
 fn set_current_cookie<'a>(stack: Stack) -> Cookie<'a> {
@@ -134,25 +111,3 @@ fn set_last_voted_cookie<'a>(stack: Stack) -> Cookie<'a> {
 
     cookie
 }
-
-// TODO: Later
-// pub async fn rpc_vote(
-//     Extension(db_handle): Extension<Arc<db::Handle>>,
-//     Json(vote_entry): Json<VoteEntry>,
-//     _jar: cookie::CookieJar
-// ) -> (StatusCode, Json<Value>) {
-//     match db_handle.get_client().await {
-//         Ok(client) => {
-//             match vtubers::vote(&client, vote_entry).await {
-//                 Ok(vtuber) => {
-//                     match serde_json::to_value(vtuber) {
-//                         Ok(value) => (StatusCode::OK, Json(value)),
-//                         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"bruh": "bruh"})))
-//                     }
-//                 }
-//                 Err(_e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"message": "OH NO"})))
-//             }
-//         }
-//         Err(_e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"message": "OIH NO"})))
-//     }
-// }

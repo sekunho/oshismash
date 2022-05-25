@@ -4,13 +4,16 @@ use tokio_postgres::{types::Type, Row};
 
 #[derive(Debug)]
 pub struct Guest {
-    pub guest_id: String,
+    pub guest_id: GuestId,
 }
+
+#[derive(Debug)]
+pub struct GuestId(pub String);
 
 impl From<Row> for Guest {
     fn from(row: Row) -> Self {
         Guest {
-            guest_id: row.get("guest_id"),
+            guest_id: GuestId(row.get("guest_id")),
         }
     }
 }
