@@ -12,7 +12,8 @@ pub mod db;
 
 use axum::{routing, Router};
 use std::{net::SocketAddr, sync::Arc};
-use tower::ServiceBuilder; use tower_http::add_extension::AddExtensionLayer;
+use tower::ServiceBuilder;
+use tower_http::add_extension::AddExtensionLayer;
 
 pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
     let db_handle = Arc::new(db_handle);

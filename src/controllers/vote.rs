@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use ::cookie::time::Duration;
 use axum::Extension;
-use axum_extra::extract::CookieJar;
 use axum_extra::extract::cookie::SameSite;
 use axum_extra::extract::cookie::{self, Cookie};
-use ::cookie::time::Duration;
+use axum_extra::extract::CookieJar;
 use maud::Markup;
 
 use crate::oshismash::vote::Vote;
@@ -20,7 +20,8 @@ pub async fn index(
     // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
     // Cookies:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-    let jar = match jar.get("scope").and(jar.get("id")) { Some(_) => jar,
+    let jar = match jar.get("scope").and(jar.get("id")) {
+        Some(_) => jar,
         None => {
             // TODO: Refactor cause ugly
             // TODO: REMOVE UNWRAPS
@@ -48,7 +49,8 @@ pub async fn index(
         .and_then(|c| c.value().parse::<i64>().ok());
 
     let stack = vtubers::get_vote_stack(&client, last_visited_id)
-        .await.map_err(|e| {
+        .await
+        .map_err(|e| {
             println!("{:?}", e);
             e
         })?;

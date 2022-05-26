@@ -1,14 +1,22 @@
 use std::sync::Arc;
 
-use axum::{async_trait, extract::{FromRequest, Form}, response::IntoResponse, BoxError, Extension};
+use axum::{
+    async_trait,
+    extract::{Form, FromRequest},
+    response::IntoResponse,
+    BoxError, Extension,
+};
 use axum_extra::extract::cookie::CookieJar;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::types::Type;
 
-use super::{vtubers::Stack, guests::GuestId};
-use crate::{oshismash::{self, guests}, db};
+use super::{guests::GuestId, vtubers::Stack};
+use crate::{
+    db,
+    oshismash::{self, guests},
+};
 
 // TODO: Implement error
 #[derive(Debug)]
@@ -20,12 +28,20 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
-        let res =
-            match self {
-                Error::InvalidVote => (StatusCode::BAD_REQUEST, "Replace this with actual HTML template"),
-                Error::InvalidAction => (StatusCode::BAD_REQUEST, "Replace this with an actual HTML template"),
-                Error::MissingGuestId => (StatusCode::BAD_REQUEST, "replace this with an actual HTML template"),
-            };
+        let res = match self {
+            Error::InvalidVote => (
+                StatusCode::BAD_REQUEST,
+                "Replace this with actual HTML template",
+            ),
+            Error::InvalidAction => (
+                StatusCode::BAD_REQUEST,
+                "Replace this with an actual HTML template",
+            ),
+            Error::MissingGuestId => (
+                StatusCode::BAD_REQUEST,
+                "replace this with an actual HTML template",
+            ),
+        };
 
         res.into_response()
     }
@@ -92,15 +108,16 @@ where
     type Rejection = oshismash::Error;
 
     async fn from_request(
-        req: &mut axum::extract::RequestParts<B>
+        req: &mut axum::extract::RequestParts<B>,
     ) -> Result<Self, Self::Rejection> {
         let form_data = req.extract::<Form<Value>>().await;
 
-        let guest_id = req.extract::<CookieJar>().await
+        let guest_id = req
+            .extract::<CookieJar>()
+            .await
             .map_err(|_| Error::MissingGuestId)
             .and_then(|jar| {
-                jar
-                    .get("id")
+                jar.get("id")
                     .and_then(|cookie| Some(GuestId(cookie.value().to_string())))
                     .ok_or(Error::MissingGuestId)
             });
@@ -111,21 +128,15 @@ where
         match (form_data, guest_id, db) {
             (Ok(Form(Value::Object(mut form_data))), Ok(GuestId(guest_id)), Ok(db)) => {
                 match db.get_client().await {
-                    Ok(client) => {
-                        match guests::is_valid(&client, guest_id.as_str()).await {
-                            Ok(true) => {
-                                form_data.insert(
-                                    String::from("guest_id"),
-                                    Value::String(guest_id)
-                                );
+                    Ok(client) => match guests::is_valid(&client, guest_id.as_str()).await {
+                        Ok(true) => {
+                            form_data.insert(String::from("guest_id"), Value::String(guest_id));
 
-                                let result = Vote::from(Value::Object(form_data))?;
-                                Ok(result)
-
-                            },
-                            Ok(false) => Err(oshismash::Error::InvalidGuest),
-                            Err(e) => Err(e),
+                            let result = Vote::from(Value::Object(form_data))?;
+                            Ok(result)
                         }
+                        Ok(false) => Err(oshismash::Error::InvalidGuest),
+                        Err(e) => Err(e),
                     },
                     Err(e) => Err(oshismash::Error::from(e)),
                 }

@@ -135,7 +135,7 @@ async fn query_vote_stack_from_previous(
     let statement = client
         .prepare_typed(
             "SELECT * FROM app.get_vote_stack_from_previous($1::BIGINT)",
-            &[Type::INT8]
+            &[Type::INT8],
         )
         .await
         .map_err(|e| {
@@ -165,7 +165,7 @@ async fn query_vote_stack_from_current(
     let statement = client
         .prepare_typed(
             "SELECT * FROM app.get_vote_stack_from_current($1)",
-            &[Type::INT8]
+            &[Type::INT8],
         )
         .await
         .map_err(|e| {
