@@ -11,6 +11,7 @@ mod oshismash;
 pub mod db;
 
 use axum::{routing, Router};
+use axum_extra::routing::SpaRouter;
 use std::{net::SocketAddr, sync::Arc};
 use tower::ServiceBuilder;
 use tower_http::add_extension::AddExtensionLayer;
@@ -25,7 +26,7 @@ pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
         .route("/", routing::get(controllers::vote::index))
         .route("/", routing::post(controllers::vote::vote))
         // .route("/rpc/vote", routing::post(controllers::vote::rpc_vote))
-        .route("/assets/:name", routing::get(controllers::assets::show))
+        .merge(SpaRouter::new("/assets", "public"))
         .layer(middleware.into_inner());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

@@ -10,7 +10,7 @@ edition = "2021"
 # For the web server
 axum = "0.5"
 hyper = "0.14"
-axum-extra = { version = "0.3", features = [ "cookie" ] }
+axum-extra = { version = "0.3", features = [ "cookie", "spa" ] }
 
 cookie = "0.16"
 
