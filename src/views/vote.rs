@@ -33,8 +33,43 @@ pub fn render(stack: Stack) -> Markup {
                     (smash(vtuber))
                 }
             }
+
+            @if let Some(stat) = stack.get_last_voted_stat() {
+                span class="dark:text-su-dark-fg-1 mt-6" { (format!("What others voted for {}", stat.name)) }
+                div class="flex justify-center space-x-2 w-full sm:w-2/3 md:w-1/3 p-4 dark:text-su-dark-fg-1" {
+                    div class="flex flex-col w-full items-end" {
+                        span class="font-bold mb-2.5 text-right" { ("Passes") }
+                        span
+                            class="rounded-md h-8 bg-gradient-to-l from-red-500 to-pink-500"
+                            style=(style_percentage(stat.passes, stat.smashes + stat.passes)) {
+
+                            }
+
+                        span class="font-bold text-lg text-right" { (stat.passes) }
+                    }
+
+                    figure class="flex-none w-24 aspect-square bg-su-dark-bg-2 rounded-md" {
+                        img class="object-cover object-top h-full w-full" src=(stat.img.as_ref().unwrap());
+                    }
+
+                    div class="flex flex-col w-full" {
+                        span class="font-bold mb-2.5" { ("Smashes") }
+                        span
+                            class="rounded-md h-8 bg-gradient-to-r from-cyan-500 to-blue-500"
+                            style=(style_percentage(stat.smashes, stat.smashes + stat.passes)) {
+
+                            }
+
+                        span class="font-bold text-lg" { (stat.smashes) }
+                    }
+                }
+            }
         }
     }
+}
+
+fn style_percentage(nominator: i64, denominator: i64) -> String {
+    format!("width: {}%;", (nominator as f64/denominator as f64) * 100 as f64)
 }
 
 fn last_card() -> Markup {
