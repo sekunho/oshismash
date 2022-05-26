@@ -9,6 +9,8 @@ pub fn render(stack: Stack) -> Markup {
     let current_vtuber = stack.get_current();
 
     html! {
+        // (prev_image_button(vtuber.prev))
+        // (next_image_button(vtuber.next))
         div class="flex flex-col justify-center items-center h-screen" {
             // Cards
             div class="relative w-full sm:w-2/3 lg:w-1/3 vh-60" {
@@ -33,6 +35,7 @@ pub fn render(stack: Stack) -> Markup {
                     (smash(vtuber))
                 }
             }
+
         }
     }
 }
@@ -49,6 +52,7 @@ fn last_card() -> Markup {
 
 fn card(vtuber: &VTuber) -> Markup {
     html! {
+
         div id="card" class="absolute rounded-lg shadow-lg bg-su-bg-2 dark:bg-su-dark-bg-2 w-full vh-60 mx-auto" {
             figure class="h-full w-full rounded-lg relative" {
                 img class="object-top object-cover h-full w-full rounded-lg" src=(vtuber.img);
@@ -70,17 +74,16 @@ fn card(vtuber: &VTuber) -> Markup {
                 }
 
 
-                div class="top-2 left-2 absolute space-y-2" {
-                    (next_button(vtuber.next))
-                    (prev_button(vtuber.prev))
+                div class="top-2 left-2 absolute space-x-2 flex" {
+                    (prev_image_button(vtuber.prev))
+                    (next_image_button(vtuber.next))
                 }
             }
         }
     }
 }
 
-// TODO: Use newtype
-fn prev_button(vtuber_id: Option<i64>) -> Markup {
+fn prev_vtuber_button(vtuber_id: Option<i64>) -> Markup {
     html! {
         @match vtuber_id {
             Some(vtuber_id) =>  {
@@ -89,7 +92,7 @@ fn prev_button(vtuber_id: Option<i64>) -> Markup {
                     input class="hidden" type="text" name="vtuber_id" value=(vtuber_id);
                     button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1" {
                         p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
-                            (icon::chevron_down())
+                            (icon::chevron_left())
                         }
                     }
                 }
@@ -99,7 +102,7 @@ fn prev_button(vtuber_id: Option<i64>) -> Markup {
             None => {
                 button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1 opacity-70 cursor-not-allowed" disabled {
                     p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
-                        (icon::chevron_down())
+                        (icon::chevron_left())
                     }
                 }
             }
@@ -107,7 +110,7 @@ fn prev_button(vtuber_id: Option<i64>) -> Markup {
     }
 }
 
-fn next_button(vtuber_id: Option<i64>) -> Markup {
+fn next_vtuber_button(vtuber_id: Option<i64>) -> Markup {
     html! {
         @match vtuber_id {
             Some(vtuber_id) =>  {
@@ -116,7 +119,7 @@ fn next_button(vtuber_id: Option<i64>) -> Markup {
                     input class="hidden" type="text" name="vtuber_id" value=(vtuber_id);
                     button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1" {
                         p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
-                            (icon::chevron_up())
+                            (icon::chevron_right())
                         }
                     }
                 }
@@ -126,7 +129,64 @@ fn next_button(vtuber_id: Option<i64>) -> Markup {
             None => {
                 button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1 opacity-70 cursor-not-allowed" disabled {
                     p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
-                        (icon::chevron_up())
+                        (icon::chevron_right())
+                    }
+                }
+            }
+        }
+    }
+}
+
+// TODO: Use newtype
+// TODO: Implement prev image
+fn prev_image_button(vtuber_id: Option<i64>) -> Markup {
+    html! {
+        @match vtuber_id {
+            Some(vtuber_id) =>  {
+                form method="POST" action="/" {
+                    input class="hidden" type="text" name="action" value="prev";
+                    input class="hidden" type="text" name="vtuber_id" value=(vtuber_id);
+                    button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1" {
+                        p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
+                            (icon::chevron_left())
+                        }
+                    }
+                }
+
+            }
+
+            None => {
+                button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1 opacity-70 cursor-not-allowed" disabled {
+                    p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
+                        (icon::chevron_left())
+                    }
+                }
+            }
+        }
+    }
+}
+
+// TODO: Implement next image
+fn next_image_button(vtuber_id: Option<i64>) -> Markup {
+    html! {
+        @match vtuber_id {
+            Some(vtuber_id) =>  {
+                form method="POST" action="/" {
+                    input class="hidden" type="text" name="action" value="next";
+                    input class="hidden" type="text" name="vtuber_id" value=(vtuber_id);
+                    button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1" {
+                        p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
+                            (icon::chevron_right())
+                        }
+                    }
+                }
+
+            }
+
+            None => {
+                button class="rounded-full h-6 w-6 dark:bg-su-dark-bg-1 opacity-70 cursor-not-allowed" disabled {
+                    p class="mx-auto h-5 w-5 dark:text-su-dark-fg-1 flex items-center justify-center" {
+                        (icon::chevron_right())
                     }
                 }
             }
