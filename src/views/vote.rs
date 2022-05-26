@@ -40,8 +40,8 @@ pub fn render(stack: Stack) -> Markup {
 fn last_card() -> Markup {
     html! {
         div id="card" class="flex items-center justify-center absolute rounded-lg shadow-lg bg-su-bg-2 dark:bg-su-dark-bg-2 w-full vh-60 mx-auto" {
-            span class="font-medium text-white text-2xl" {
-                ("That's all there is to vote for. Uh... congrats..? 🎉")
+            span class="font-medium text-white text-2xl text-center" {
+                ("You can touch grass now.")
             }
         }
     }
