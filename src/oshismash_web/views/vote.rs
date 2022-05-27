@@ -9,8 +9,7 @@ pub fn render(stack: Stack) -> Markup {
     let current_vtuber = stack.get_current();
 
     html! {
-        div class="flex flex-col justify-center items-center h-screen py-8" {
-            h1 class="mb-auto mb-8 dark:text-su-dark-fg-1 font-bold uppercase text-2xl md:text-4xl text-center" { ("Oshi Smash") }
+        div class="flex-1 flex flex-col justify-center items-center" {
             // Cards
             div class="flex-1 relative w-full sm:w-2/3 lg:w-1/3" {
                 @if let Some(vtuber) = current_vtuber {
@@ -36,12 +35,12 @@ pub fn render(stack: Stack) -> Markup {
             }
 
             @if let Some(stat) = stack.get_last_voted_stat() {
-                span class="dark:text-su-dark-fg-1 mt-6" { (format!("What others voted for {}", stat.name)) }
+                span class="hidden md:block dark:text-su-dark-fg-1 mt-6" { (format!("What others voted for {}", stat.name)) }
                 div class="flex justify-center space-x-2 w-full sm:w-2/3 md:w-1/3 mt-4 dark:text-su-dark-fg-1" {
                     div class="flex flex-col w-full items-end" {
-                        span class="font-bold mb-2.5 text-right" { ("Passes") }
+                        span class="text-sm md:text-base font-bold mb-1 md:mb-2.5 text-right" { ("Passes") }
                         span
-                            class="rounded-md h-8 bg-gradient-to-l from-red-500 to-pink-500"
+                            class="text-sm md:text-base rounded-md h-2 md:h-6 bg-gradient-to-l from-red-500 to-pink-500"
                             style=(style_percentage(stat.passes, stat.smashes + stat.passes)) {
 
                             }
@@ -49,14 +48,14 @@ pub fn render(stack: Stack) -> Markup {
                         span class="font-bold text-lg text-right" { (stat.passes) }
                     }
 
-                    figure class="flex-none w-24 aspect-square bg-su-dark-bg-2 rounded-md" {
+                    figure class="flex-none w-12 md:w-24 aspect-square bg-su-dark-bg-2 rounded-md" {
                         img class="object-cover object-top h-full w-full" src=(stat.img.as_ref().unwrap());
                     }
 
                     div class="flex flex-col w-full" {
-                        span class="font-bold mb-2.5" { ("Smashes") }
+                        span class="text-sm md:text-base font-bold mb-1 md:mb-2.5" { ("Smashes") }
                         span
-                            class="rounded-md h-8 bg-gradient-to-r from-cyan-500 to-blue-500"
+                            class="text-sm md:text-base rounded-md h-2 md:h-6 bg-gradient-to-r from-cyan-500 to-blue-500"
                             style=(style_percentage(stat.smashes, stat.smashes + stat.passes)) {
 
                             }
@@ -179,8 +178,8 @@ fn smash(vtuber: &VTuber) -> Markup {
             input class="hidden" type="text" name="action" value="smashed";
             input class="hidden" type="text" name="vtuber_id" value=(vtuber.id);
 
-            button class="shadow-md rounded-full h-14 w-14 bg-gradient-to-t from-purple-500 to-pink-500" {
-                p class="mx-auto h-8 w-8 text-white flex items-center justify-center" { (icon::heart()) }
+            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-purple-500 to-pink-500" {
+                p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::heart()) }
             }
         }
     }
@@ -192,8 +191,8 @@ fn pass(vtuber: &VTuber) -> Markup {
             input class="hidden" type="text" name="action" value="passed";
             input class="hidden" type="text" name="vtuber_id" value=(vtuber.id);
 
-            button class="shadow-md rounded-full h-14 w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
-                p class="mx-auto h-8 w-8 text-white flex items-center justify-center" { (icon::x()) }
+            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
+                p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::x()) }
             }
         }
     }
