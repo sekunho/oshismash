@@ -5,18 +5,17 @@ use axum::Extension;
 use axum_extra::extract::cookie::SameSite;
 use axum_extra::extract::cookie::{self, Cookie};
 use axum_extra::extract::CookieJar;
-use maud::Markup;
 
 use crate::oshismash::vote::Vote;
 use crate::oshismash::vtubers::Stack;
 use crate::oshismash::{self, guests, vtubers};
-use crate::{db, oshismash_web::views};
+use crate::db;
 
 /// Main page for the smash or pass
 pub async fn index(
     Extension(db_handle): Extension<Arc<db::Handle>>,
     jar: cookie::CookieJar,
-) -> Result<(cookie::CookieJar, Markup), oshismash::Error> {
+) -> Result<(cookie::CookieJar, Stack), oshismash::Error> {
     // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
     // Cookies:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
@@ -55,15 +54,7 @@ pub async fn index(
             e
         })?;
 
-    let template = (
-        jar,
-        views::root::render(
-            "Oshi Smash: Smash or Pass Your Oshis!",
-            views::vote::render(stack),
-        ),
-    );
-
-    Ok(template)
+    Ok((jar, stack))
 }
 
 /// Handles the voting for a VTuber
@@ -71,22 +62,16 @@ pub async fn vote(
     Extension(db_handle): Extension<Arc<db::Handle>>,
     vote: Vote,
     jar: cookie::CookieJar,
-) -> Result<(CookieJar, Markup), oshismash::Error> {
+) -> Result<(CookieJar, Stack), oshismash::Error> {
     let client = db_handle.get_client().await?;
     let stack = oshismash::vote::vote(&client, vote).await?;
-
-    // TODO(sekun): Move to an `IntoResponse` instance
-    let template = views::root::render(
-        "Oshi Smash: Smash or Pass Your Oshis!",
-        views::vote::render(stack.clone()),
-    );
 
     // TODO(sekun): Move to middleware. I think it's possible.
     let last_voted_cookie = set_last_voted_cookie(stack.clone());
     let current_cookie = set_current_cookie(stack.clone());
     let jar = jar.add(last_voted_cookie).add(current_cookie);
 
-    Ok((jar, template))
+    Ok((jar, stack))
 }
 
 fn set_current_cookie<'a>(stack: Stack) -> Cookie<'a> {
