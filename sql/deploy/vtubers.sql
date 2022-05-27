@@ -214,17 +214,4 @@ BEGIN;
 
     COMMENT ON FUNCTION app.vote IS
       'Votes on a VTuber depending on what the action is.';
-
-    CREATE FUNCTION app.get_current_and_next(vtuber_id BIGINT)
-      RETURNS TABLE (
-        vtuber_id BIGINT,
-        name TEXT,
-        description TEXT,
-        img TEXT
-      )
-      LANGUAGE SQL
-      AS $$
-        SELECT vtuber_id, name, description, img
-          FROM app.vtubers;
-      $$;
 COMMIT;

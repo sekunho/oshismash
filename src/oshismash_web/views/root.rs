@@ -64,9 +64,7 @@ fn footer() -> Markup {
         footer class="hidden md:block bg-gray-100 dark:bg-su-dark-bg-1" {
             div class="max-w-7xl mx-auto pb-6 pt-2 px-4 sm:px-6 flex flex-col-reverse items-center md:flex-row md:items-center md:justify-between lg:px-8 text-su-fg-1 dark:text-su-dark-fg-1" {
                 span class="hidden md:block mt-4 md:mt-0" {
-                    "Made with "
-                    span class="font-bold " { "regret" }
-                    " by "
+                    "Made by "
                     a href="https://sekun.dev" target="_blank" class="underline decoration-wavy decoration-red-500" {
                         "SEKUN"
                     }

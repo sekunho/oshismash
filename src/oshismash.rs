@@ -2,23 +2,25 @@ pub(crate) mod guests;
 pub(crate) mod vote;
 pub(crate) mod vtubers;
 
-use axum::response::{IntoResponse, Response};
+use axum::{response::{IntoResponse, Response}, extract::rejection::ExtensionRejection};
 use deadpool_postgres::PoolError;
 use hyper::StatusCode;
 
 use crate::db;
 
-#[derive(Debug)]
 pub enum Error {
     UnableToQuery(tokio_postgres::Error),
     FailedToSetupDb(db::Error),
     InvalidGuest,
     PoolError(PoolError),
     FailedToParseVoteEntry,
+    MissingDbHandleExtension,
 
     // TODO: Choose one only
     FailedToParseStack(vtubers::Error),
     StackParseFailed,
+    FailedToParseClientData,
+    InvalidClientData,
 }
 
 impl From<tokio_postgres::Error> for Error {
@@ -57,15 +59,13 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-// TODO: Implement this
-// impl Serialize for Error {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer {
-//         todo!()
-//     }
-// }
+impl From<ExtensionRejection> for Error {
+    fn from(_: ExtensionRejection) -> Self {
+        Error::MissingDbHandleExtension
+    }
+}
 
+// TODO: Move out to `oshismash_web`
 impl IntoResponse for Error {
     fn into_response(self: Error) -> Response {
         match self {
@@ -93,6 +93,18 @@ impl IntoResponse for Error {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "E006: Failed to parse card stack",
             ),
+            Error::FailedToParseClientData => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "E007: Failed to parse client data",
+            ),
+            Error::MissingDbHandleExtension => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "E008: Missing DB handle extension",
+            ),
+            Error::InvalidClientData => (
+                StatusCode::BAD_REQUEST,
+                "E009: You can only vote for a VTuber that's currently displayed"
+            )
         }
         .into_response()
     }

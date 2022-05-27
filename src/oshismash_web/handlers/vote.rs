@@ -1,100 +1,54 @@
 use std::sync::Arc;
 
-use ::cookie::time::Duration;
 use axum::Extension;
-use axum_extra::extract::cookie::SameSite;
-use axum_extra::extract::cookie::{self, Cookie};
+use axum_extra::extract::cookie;
 use axum_extra::extract::CookieJar;
 
 use crate::oshismash::vote::Vote;
 use crate::oshismash::vtubers::Stack;
-use crate::oshismash::{self, guests, vtubers};
+use crate::oshismash;
 use crate::db;
-
-/// Main page for the smash or pass
-pub async fn index(
-    Extension(db_handle): Extension<Arc<db::Handle>>,
-    jar: cookie::CookieJar,
-) -> Result<(cookie::CookieJar, Stack), oshismash::Error> {
-    // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
-    // Cookies:
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-    let jar = match jar.get("scope").and(jar.get("id")) {
-        Some(_) => jar,
-        None => {
-            // TODO: Refactor cause ugly
-            // TODO: REMOVE UNWRAPS
-            let client = db_handle.pool.get().await?;
-            let guest = guests::create_guest(&client).await.unwrap();
-
-            let id = format!(
-                "id={}; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647",
-                guest.guest_id.0,
-            );
-
-            let scope = "scope=all; HttpOnly; Secure; SameSite=Strict; Max-Age=2147483647";
-
-            let id = Cookie::parse(id).unwrap();
-            let scope = Cookie::parse(scope).unwrap();
-
-            jar.add(id).add(scope)
-        }
-    };
-
-    let client = db_handle.pool.get().await?;
-
-    let last_visited_id = jar
-        .get("last_visited")
-        .and_then(|c| c.value().parse::<i64>().ok());
-
-    let stack = vtubers::get_vote_stack(&client, last_visited_id)
-        .await
-        .map_err(|e| {
-            println!("{:?}", e);
-            e
-        })?;
-
-    Ok((jar, stack))
-}
+use crate::oshismash::vtubers::VTuberId;
+use crate::oshismash_web::client_data::ClientData;
+use crate::oshismash_web::cookie_util;
 
 /// Handles the voting for a VTuber
 pub async fn vote(
     Extension(db_handle): Extension<Arc<db::Handle>>,
+    client_data: ClientData,
     vote: Vote,
     jar: cookie::CookieJar,
 ) -> Result<(CookieJar, Stack), oshismash::Error> {
-    let client = db_handle.get_client().await?;
-    let stack = oshismash::vote::vote(&client, vote).await?;
+    let db_client = db_handle.get_client().await?;
+    let stack = oshismash::vote::vote(&db_client, vote).await?;
 
     // TODO(sekun): Move to middleware. I think it's possible.
-    let last_voted_cookie = set_last_voted_cookie(stack.clone());
-    let current_cookie = set_current_cookie(stack.clone());
-    let jar = jar.add(last_voted_cookie).add(current_cookie);
+    //
+    // This might make no sense, and maybe there's a better way to do this, but
+    // the cookies are set this way. If the `current` cookie is set with an
+    // actual value, that is the VTuber's ID, then `last_visited` should be set
+    // to `none` because there's literally no use for it. The only time it is
+    // ever used is when `current` is `none`.
+    match stack.get_current() {
+        Some(vtuber) => {
+            let jar = jar
+                .add(cookie_util::create("current", vtuber.id))
+                .add(cookie_util::create("last_visited", "none"));
 
-    Ok((jar, stack))
+            Ok((jar, stack))
+        },
+        None => {
+            match client_data.vtuber_id {
+                VTuberId::Current(id) => {
+                    let jar = jar
+                        .add(cookie_util::create("last_visited", id))
+                        .add(cookie_util::create("current", "none"));
+
+                    Ok((jar, stack))
+                },
+                VTuberId::LastVisited(_) => Err(oshismash::Error::InvalidClientData),
+            }
+        },
+    }
 }
 
-fn set_current_cookie<'a>(stack: Stack) -> Cookie<'a> {
-    let cookie_val = match stack.get_current() {
-        Some(current) => current.id.to_string(),
-        None => "none".to_string(),
-    };
-
-    Cookie::new("current", cookie_val)
-}
-
-fn set_last_voted_cookie<'a>(stack: Stack) -> Cookie<'a> {
-    let cookie_val = match stack.get_last_voted_stat() {
-        Some(stat) => stat.vtuber_id.to_string(),
-        None => "none".to_string(),
-    };
-
-    let mut cookie = Cookie::new("last_visited", cookie_val);
-
-    cookie.set_secure(true);
-    cookie.set_http_only(true);
-    cookie.set_same_site(SameSite::Strict);
-    cookie.set_max_age(Duration::seconds(2147483647));
-
-    cookie
-}

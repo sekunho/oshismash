@@ -1,7 +1,7 @@
 use maud::{html, Markup};
 
 use crate::{
-    oshismash::vtubers::{Stack, VTuber},
+    oshismash::{vtubers::{Stack, VTuber}, vote::Stat},
     oshismash_web::components::icon,
 };
 
@@ -20,15 +20,19 @@ pub fn render(stack: Stack) -> Markup {
 
                     div id="card" class="top-5 left-0 right-0 mx-auto absolute rounded-lg shadow-lg opacity-70 bg-su-bg-2 dark:bg-su-dark-bg-2 w-11/12 h-full mx-auto" {
                     }
-
                     (card(vtuber))
                 } @else {
                     (last_card())
                 }
             }
 
-            @if let Some(vtuber) = current_vtuber {
-                div class="flex mt-16 space-x-2.5" {
+            div class="flex mt-16 space-x-2.5" {
+                // noscript {
+                    (prev_vtuber(&stack))
+                    (next_vtuber(&stack))
+                // }
+
+                @if let Some(vtuber) = current_vtuber {
                     (pass(vtuber))
                     (smash(vtuber))
                 }
@@ -178,8 +182,14 @@ fn smash(vtuber: &VTuber) -> Markup {
             input class="hidden" type="text" name="action" value="smashed";
             input class="hidden" type="text" name="vtuber_id" value=(vtuber.id);
 
-            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-purple-500 to-pink-500" {
-                p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::heart()) }
+            // button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-cyan-500 to-blue-500" {
+            //     p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::heart()) }
+            // }
+
+            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 border border-cyan-500 hover:border-0 hover:bg-gradient-to-t hover:from-cyan-500 hover:to-blue-500 text-cyan-500 hover:text-white" title="Smash" {
+                p class="mx-auto h-6 w-6 md:h-8 md:w-8 flex items-center justify-center" {
+                    (icon::heart())
+                }
             }
         }
     }
@@ -191,9 +201,84 @@ fn pass(vtuber: &VTuber) -> Markup {
             input class="hidden" type="text" name="action" value="passed";
             input class="hidden" type="text" name="vtuber_id" value=(vtuber.id);
 
-            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
-                p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::x()) }
+            // button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-red-500 to-pink-500" {
+            //     p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::x()) }
+            // }
+
+            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 border border-red-500 hover:border-0 hover:bg-gradient-to-t hover:from-red-500 hover:to-pink-500 text-red-500 hover:text-white" title="Pass" {
+                p class="mx-auto h-6 w-6 md:h-8 md:w-8 flex items-center justify-center" {
+                    (icon::x())
+                }
             }
         }
+    }
+}
+
+fn next_vtuber(stack: &Stack) -> Markup {
+    let next_button = |vtuber_id: i64 | {
+        html! {
+            a href=(format!("/{}", vtuber_id)) class="flex items-center justify-center shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
+                p class="h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" {
+                    (icon::chevron_up())
+                }
+            }
+        }
+    };
+
+    let next_disabled_button = html! {
+       button
+           disabled
+           class="cursor-not-allowed shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2 opacity-50" {
+            p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" {
+                (icon::chevron_up())
+            }
+        }
+    };
+
+    match stack.get_current() {
+        Some(current) => {
+            match current.next {
+                Some(id) => next_button(id),
+                None => next_disabled_button,
+            }
+        },
+        None => next_disabled_button,
+    }
+}
+
+fn prev_vtuber(stack: &Stack) -> Markup {
+    let prev_button = |vtuber_id: i64 | {
+        html! {
+            a href=(format!("/{}", vtuber_id)) class="flex items-center justify-center shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
+                p class="h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" {
+                    (icon::chevron_down())
+                }
+            }
+        }
+    };
+
+    let prev_disabled_button = html! {
+       button
+           disabled
+           class="cursor-not-allowed shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2 opacity-50" {
+            p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" {
+                (icon::chevron_down())
+            }
+        }
+    };
+
+    match stack.get_current() {
+        Some(current) => {
+            match current.prev {
+                Some(id) => prev_button(id),
+                None => prev_disabled_button,
+            }
+        },
+        None => {
+            match stack.get_last_voted_stat() {
+                Some(Stat { vtuber_id, .. }) => prev_button(*vtuber_id),
+                None => prev_disabled_button,
+            }
+        },
     }
 }

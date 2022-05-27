@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::types::Type;
@@ -118,13 +120,24 @@ pub struct VTuber {
     pub img: String,
 }
 
+#[derive(Debug)]
+pub enum VTuberId {
+    /// If there's a current VTuber ID.
+    Current(i64),
+
+    /// If there's no current VTuber ID, rely on the previous visited.
+    LastVisited(i64),
+}
+
+// This makes no sense.
+// FIXME: Make it current only. Ignore previous
 pub async fn get_vote_stack(
     client: &deadpool_postgres::Object,
-    last_voted_vtuber_id: Option<i64>,
+    vtuber_id: &VTuberId,
 ) -> Result<Stack, Error> {
-    match last_voted_vtuber_id {
-        Some(prev_id) => query_vote_stack_from_previous(client, prev_id).await,
-        None => query_vote_stack_from_current(client, 1).await,
+    match vtuber_id {
+        VTuberId::LastVisited(id) => query_vote_stack_from_previous(client, *id).await,
+        VTuberId::Current(id) => query_vote_stack_from_current(client, *id).await,
     }
 }
 

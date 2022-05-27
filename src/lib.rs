@@ -22,10 +22,14 @@ pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
     let middleware = ServiceBuilder::new().layer(AddExtensionLayer::new(db_handle));
 
     let app = Router::new()
-        .route("/", routing::get(handlers::vote::index))
+        .route("/", routing::get(handlers::vtuber::show_from_cookie))
         .route("/", routing::post(handlers::vote::vote))
         // .route("/rpc/vote", routing::post(handlers::vote::rpc_vote))
         .merge(SpaRouter::new("/assets", "public"))
+        // TODO: REMOVE THIS FOR AN ACTUAL FAVICON
+        .route("/favicon.ico", routing::get(handlers::vtuber::touch_grass))
+        .route("/touch-grass", routing::get(handlers::vtuber::touch_grass))
+        .route("/:vtuber_id", routing::get(handlers::vtuber::show_given_id))
         .layer(middleware.into_inner());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
