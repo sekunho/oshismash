@@ -1,8 +1,8 @@
 use maud::{html, Markup};
 
 use crate::{
-    component::icon,
     oshismash::vtubers::{Stack, VTuber},
+    oshismash_web::components::icon,
 };
 
 pub fn render(stack: Stack) -> Markup {

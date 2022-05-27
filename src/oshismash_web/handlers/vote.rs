@@ -10,7 +10,7 @@ use maud::Markup;
 use crate::oshismash::vote::Vote;
 use crate::oshismash::vtubers::Stack;
 use crate::oshismash::{self, guests, vtubers};
-use crate::{db, views};
+use crate::{db, oshismash_web::views};
 
 /// Main page for the smash or pass
 pub async fn index(

@@ -1,7 +1,6 @@
-pub mod guests;
-pub mod stat;
-pub mod vote;
-pub mod vtubers;
+pub(crate) mod guests;
+pub(crate) mod vote;
+pub(crate) mod vtubers;
 
 use axum::response::{IntoResponse, Response};
 use deadpool_postgres::PoolError;
