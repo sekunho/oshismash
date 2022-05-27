@@ -9,16 +9,17 @@ pub fn render(stack: Stack) -> Markup {
     let current_vtuber = stack.get_current();
 
     html! {
-        div class="flex flex-col justify-center items-center h-screen" {
+        div class="flex flex-col justify-center items-center h-screen py-8" {
+            h1 class="mb-auto mb-8 dark:text-su-dark-fg-1 font-bold uppercase text-2xl md:text-4xl text-center" { ("Oshi Smash") }
             // Cards
-            div class="relative w-full sm:w-2/3 lg:w-1/3 vh-60" {
+            div class="flex-1 relative w-full sm:w-2/3 lg:w-1/3" {
                 @if let Some(vtuber) = current_vtuber {
                     @if let Some(_) = vtuber.next {
-                        div id="card" class="top-10 left-0 right-0 mx-auto absolute rounded-lg shadow-lg opacity-50 bg-su-bg-2 dark:bg-su-dark-bg-2 w-10/12 vh-60 mx-auto" {
+                        div id="card" class="top-10 left-0 right-0 mx-auto absolute rounded-lg shadow-lg opacity-50 bg-su-bg-2 dark:bg-su-dark-bg-2 w-10/12 h-full mx-auto" {
                         }
                     }
 
-                    div id="card" class="top-5 left-0 right-0 mx-auto absolute rounded-lg shadow-lg opacity-70 bg-su-bg-2 dark:bg-su-dark-bg-2 w-11/12 vh-60 mx-auto" {
+                    div id="card" class="top-5 left-0 right-0 mx-auto absolute rounded-lg shadow-lg opacity-70 bg-su-bg-2 dark:bg-su-dark-bg-2 w-11/12 h-full mx-auto" {
                     }
 
                     (card(vtuber))
@@ -77,7 +78,7 @@ fn style_percentage(nominator: i64, denominator: i64) -> String {
 
 fn last_card() -> Markup {
     html! {
-        div id="card" class="flex items-center justify-center absolute rounded-lg shadow-lg bg-su-bg-2 dark:bg-su-dark-bg-2 w-full vh-60 mx-auto" {
+        div id="card" class="flex items-center justify-center absolute rounded-lg shadow-lg bg-su-bg-2 dark:bg-su-dark-bg-2 w-full h-full mx-auto" {
             span class="font-medium text-white text-2xl text-center" {
                 ("You can touch grass now.")
             }
@@ -87,7 +88,7 @@ fn last_card() -> Markup {
 
 fn card(vtuber: &VTuber) -> Markup {
     html! {
-        div id="card" class="absolute rounded-lg shadow-lg bg-su-bg-2 dark:bg-su-dark-bg-2 w-full vh-60 mx-auto" {
+        div id="card" class="absolute rounded-lg shadow-lg bg-su-bg-2 dark:bg-su-dark-bg-2 w-full h-full mx-auto" {
             figure class="h-full w-full rounded-lg relative" {
                 img class="object-top object-cover h-full w-full rounded-lg" src=(vtuber.img);
 

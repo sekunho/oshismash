@@ -2,13 +2,18 @@
 // https://tailwindcss.com/docs/configuration
 module.exports = {
   content: [
-    './src/views/*.rs',
-    './src/views.rs',
+    './src/oshismash_web/views/*.rs',
+    './src/oshismash_web/views.rs',
     './public/**/*.html',
     './assets/**/*.ts'
   ],
   theme: {
     extend: {
+      height: {
+        '40vh': '40vh',
+        '50vh': '50vh',
+        '60vh': '60vh'
+      },
       fontFamily: {
         'serif': ['Vollkorn', 'Georgia', 'Tahoma', 'serif'],
         'sans': ['Inter', 'Helvetica', 'Arial', 'sans-serif']
