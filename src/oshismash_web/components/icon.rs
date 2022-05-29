@@ -49,7 +49,6 @@ pub fn github() -> Markup {
             </svg>
         "))
     }
-
 }
 
 pub fn twitter() -> Markup {

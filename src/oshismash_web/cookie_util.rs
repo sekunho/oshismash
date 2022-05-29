@@ -1,9 +1,9 @@
-use cookie::{Cookie, SameSite, time::Duration};
+use cookie::{time::Duration, Cookie, SameSite};
 
 pub fn create<'a, K, V>(name: K, value: V) -> Cookie<'a>
 where
     K: ToString,
-    V: ToString
+    V: ToString,
 {
     let mut cookie = Cookie::new(name.to_string(), value.to_string());
 

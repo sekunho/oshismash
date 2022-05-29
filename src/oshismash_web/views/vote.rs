@@ -1,7 +1,10 @@
 use maud::{html, Markup};
 
 use crate::{
-    oshismash::{vtubers::{Stack, VTuber}, vote::Stat},
+    oshismash::{
+        vote::Stat,
+        vtubers::{Stack, VTuber},
+    },
     oshismash_web::components::icon,
 };
 
@@ -215,7 +218,7 @@ fn pass(vtuber: &VTuber) -> Markup {
 }
 
 fn next_vtuber(stack: &Stack) -> Markup {
-    let next_button = |vtuber_id: i64 | {
+    let next_button = |vtuber_id: i64| {
         html! {
             a href=(format!("/{}", vtuber_id)) class="flex items-center justify-center shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
                 p class="h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" {
@@ -236,18 +239,16 @@ fn next_vtuber(stack: &Stack) -> Markup {
     };
 
     match stack.get_current() {
-        Some(current) => {
-            match current.next {
-                Some(id) => next_button(id),
-                None => next_disabled_button,
-            }
+        Some(current) => match current.next {
+            Some(id) => next_button(id),
+            None => next_disabled_button,
         },
         None => next_disabled_button,
     }
 }
 
 fn prev_vtuber(stack: &Stack) -> Markup {
-    let prev_button = |vtuber_id: i64 | {
+    let prev_button = |vtuber_id: i64| {
         html! {
             a href=(format!("/{}", vtuber_id)) class="flex items-center justify-center shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-su-bg-2 dark:bg-su-dark-bg-2" {
                 p class="h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" {
@@ -268,17 +269,13 @@ fn prev_vtuber(stack: &Stack) -> Markup {
     };
 
     match stack.get_current() {
-        Some(current) => {
-            match current.prev {
-                Some(id) => prev_button(id),
-                None => prev_disabled_button,
-            }
+        Some(current) => match current.prev {
+            Some(id) => prev_button(id),
+            None => prev_disabled_button,
         },
-        None => {
-            match stack.get_last_voted_stat() {
-                Some(Stat { vtuber_id, .. }) => prev_button(*vtuber_id),
-                None => prev_disabled_button,
-            }
+        None => match stack.get_last_voted_stat() {
+            Some(Stat { vtuber_id, .. }) => prev_button(*vtuber_id),
+            None => prev_disabled_button,
         },
     }
 }

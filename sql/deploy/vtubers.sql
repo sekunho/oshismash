@@ -5,7 +5,8 @@ BEGIN;
   CREATE TYPE app.REGION AS ENUM ('cn', 'en', 'jp', 'none');
   CREATE TYPE app.ACTION AS ENUM ('smashed', 'passed');
 
-  -- Tables CREATE TABLE app.orgs (
+  -- Tables
+  CREATE TABLE app.orgs (
     org_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     name   TEXT NOT NULL
   );
@@ -37,7 +38,8 @@ BEGIN;
 
   CREATE TABLE app.guest_votes(
     action_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    action     app.ACTION NOT NULL, vtuber_id BIGINT REFERENCES app.vtubers NOT NULL,
+    action     app.ACTION NOT NULL,
+    vtuber_id  BIGINT REFERENCES app.vtubers NOT NULL,
     guest_id   UUID REFERENCES app.guests NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
@@ -69,40 +71,10 @@ BEGIN;
       GROUP BY smashes_cte.count, passes_cte.count;
     $$;
 
-  CREATE OR REPLACE FUNCTION app.get_vote_stack_from_previous(
-    prev_vtuber_id BIGINT
-  )
-    RETURNS JSONB
-    LANGUAGE SQL
-    AS $$
-      WITH current_cte AS (
-        SELECT vtubers.next
-          FROM app.vtubers
-          WHERE vtubers.vtuber_id = $1
-      )
-      SELECT app.get_vote_stack($1, current_cte.next)
-        FROM current_cte;
-    $$;
-
-  CREATE OR REPLACE FUNCTION app.get_vote_stack_from_current(
-    current_vtuber_id BIGINT
-  )
-    RETURNS JSONB
-    LANGUAGE SQL
-    AS $$
-      WITH current_cte AS (
-        SELECT vtubers.prev, vtubers.vtuber_id
-          FROM app.vtubers
-          WHERE vtubers.vtuber_id = $1
-      )
-      SELECT app.get_vote_stack(current_cte.prev, current_cte.vtuber_id)
-        FROM current_cte;
-    $$;
-
-
   CREATE OR REPLACE FUNCTION app.get_vote_stack
     ( prev_vtuber_id BIGINT
     , current_vtuber_id BIGINT
+    , guest_id UUID
     )
     RETURNS JSONB
     LANGUAGE PLPGSQL
@@ -169,6 +141,11 @@ BEGIN;
             FROM app.vtubers AS vtubers
                , app.get_metrics(prev_vtuber_id) AS metrics
             WHERE vtubers.vtuber_id = get_vote_stack.prev_vtuber_id
+        ), voted_vtubers_cte AS (
+          SELECT jsonb_agg(vtuber_id)
+            FROM app.guest_votes
+            WHERE guest_votes.vtuber_id <= $2
+              AND guest_votes.guest_id = $3
         )
         SELECT
           json_build_object
@@ -176,11 +153,47 @@ BEGIN;
             , current_vtuber_cte.jsonb_agg -> 0
             , 'results'
             , prev_results_cte.jsonb_agg -> 0
+            , 'voted'
+            , coalesce(voted_vtubers_cte.jsonb_agg, '[]'::JSONB)
             )
           INTO data
-          FROM current_vtuber_cte, prev_results_cte;
+          FROM current_vtuber_cte, prev_results_cte, voted_vtubers_cte;
         RETURN data;
       END;
+    $$;
+
+
+
+  CREATE OR REPLACE FUNCTION app.get_vote_stack_from_previous
+    ( prev_vtuber_id BIGINT
+    , guest_id       UUID
+    )
+    RETURNS JSONB
+    LANGUAGE SQL
+    AS $$
+      WITH current_cte AS (
+        SELECT vtubers.next
+          FROM app.vtubers
+          WHERE vtubers.vtuber_id = $1
+      )
+      SELECT app.get_vote_stack($1, current_cte.next, $2)
+        FROM current_cte;
+    $$;
+
+  CREATE OR REPLACE FUNCTION app.get_vote_stack_from_current
+    ( current_vtuber_id BIGINT
+    , guest_id          UUID
+    )
+    RETURNS JSONB
+    LANGUAGE SQL
+    AS $$
+      WITH current_cte AS (
+        SELECT vtubers.prev, vtubers.vtuber_id
+          FROM app.vtubers
+          WHERE vtubers.vtuber_id = $1
+      )
+      SELECT app.get_vote_stack(current_cte.prev, current_cte.vtuber_id, $2)
+        FROM current_cte;
     $$;
 
     COMMENT ON FUNCTION app.get_vote_stack IS
@@ -208,7 +221,7 @@ BEGIN;
           FROM app.vtubers, prev_vtuber_cte
           WHERE vtubers.vtuber_id = prev_vtuber_cte.prev_vtuber_id
       )
-      SELECT app.get_vote_stack(prev_vtuber_cte.prev_vtuber_id, current_vtuber_cte.current_vtuber_id)
+      SELECT app.get_vote_stack(prev_vtuber_cte.prev_vtuber_id, current_vtuber_cte.current_vtuber_id, $1)
         FROM prev_vtuber_cte, current_vtuber_cte;
     $$;
 

@@ -2,7 +2,10 @@ pub(crate) mod guests;
 pub(crate) mod vote;
 pub(crate) mod vtubers;
 
-use axum::{response::{IntoResponse, Response}, extract::rejection::ExtensionRejection};
+use axum::{
+    extract::rejection::ExtensionRejection,
+    response::{IntoResponse, Response},
+};
 use deadpool_postgres::PoolError;
 use hyper::StatusCode;
 
@@ -15,12 +18,14 @@ pub enum Error {
     PoolError(PoolError),
     FailedToParseVoteEntry,
     MissingDbHandleExtension,
+    MaxVisitedIsLessThanCurrent,
 
     // TODO: Choose one only
     FailedToParseStack(vtubers::Error),
     StackParseFailed,
     FailedToParseClientData,
     InvalidClientData,
+    NotAllowedToVote,
 }
 
 impl From<tokio_postgres::Error> for Error {
@@ -103,7 +108,15 @@ impl IntoResponse for Error {
             ),
             Error::InvalidClientData => (
                 StatusCode::BAD_REQUEST,
-                "E009: You can only vote for a VTuber that's currently displayed"
+                "E009: You can only vote for a VTuber that's currently displayed",
+            ),
+            Error::NotAllowedToVote => (
+                StatusCode::FORBIDDEN,
+                "E010: You have to vote for the previous entries first."
+            ),
+            Error::MaxVisitedIsLessThanCurrent => (
+                StatusCode::FORBIDDEN,
+                "E011: You have to vote for the previous entries first."
             )
         }
         .into_response()

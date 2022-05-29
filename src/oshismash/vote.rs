@@ -47,7 +47,7 @@ impl IntoResponse for Error {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Action {
     Smashed,
     Passed,
@@ -64,16 +64,20 @@ impl Action {
 }
 
 // TODO(sekun): Rename to `Ballot`?
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Vote {
-    pub vtuber_id: String,
+    pub vtuber_id: i64,
     pub guest_id: String,
     pub action: Action,
 }
 
 impl Vote {
     pub fn from(val: Value) -> Result<Vote, Error> {
-        let vtuber_id = val.get("vtuber_id").and_then(|a| a.as_str());
+        let vtuber_id = val
+            .get("vtuber_id")
+            .and_then(|a| a.as_str())
+            .and_then(|a| a.parse::<i64>().ok());
+
         let guest_id = val.get("guest_id").and_then(|a| a.as_str());
         let action = val.get("action").and_then(|a| a.as_str());
 
@@ -83,7 +87,7 @@ impl Vote {
                     Action::from(action).map_or_else(|| Err(Error::InvalidAction), |a| Ok(a))?;
 
                 let vote = Vote {
-                    vtuber_id: vtuber_id.to_string(),
+                    vtuber_id,
                     guest_id: guest_id.to_string(),
                     action,
                 };
@@ -170,7 +174,7 @@ pub async fn vote(
     let vote_statement = client
         .prepare_typed(
             "SELECT * FROM app.vote($1 :: UUID, $2 :: BIGINT, $3 :: app.ACTION)",
-            &[Type::TEXT, Type::TEXT, Type::TEXT],
+            &[Type::TEXT, Type::INT8, Type::TEXT],
         )
         .await
         .map_err(|e| {
@@ -209,7 +213,7 @@ mod tests {
         });
 
         let expected = Vote {
-            vtuber_id: "1".to_string(),
+            vtuber_id: 1,
             guest_id: "0b76fdde-9910-402d-b7c2-97c02247b5fd".to_string(),
             action: Action::Passed,
         };
