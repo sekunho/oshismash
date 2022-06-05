@@ -23,7 +23,6 @@ pub enum Error {
     // TODO: Choose one only
     FailedToParseStack(vtubers::Error),
     StackParseFailed,
-    FailedToParseClientData,
     InvalidClientData,
     NotAllowedToVote,
 }
@@ -98,26 +97,22 @@ impl IntoResponse for Error {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "E006: Failed to parse card stack",
             ),
-            Error::FailedToParseClientData => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "E007: Failed to parse client data",
-            ),
             Error::MissingDbHandleExtension => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "E008: Missing DB handle extension",
+                "E007: Missing DB handle extension",
             ),
             Error::InvalidClientData => (
                 StatusCode::BAD_REQUEST,
-                "E009: You can only vote for a VTuber that's currently displayed",
+                "E008: You can only vote for a VTuber that's currently displayed",
             ),
             Error::NotAllowedToVote => (
                 StatusCode::FORBIDDEN,
-                "E010: You have to vote for the previous entries first."
+                "E009: You have to vote for the previous entries first.",
             ),
             Error::MaxVisitedIsLessThanCurrent => (
                 StatusCode::FORBIDDEN,
-                "E011: You have to vote for the previous entries first."
-            )
+                "E010: You have to vote for the previous entries first.",
+            ),
         }
         .into_response()
     }

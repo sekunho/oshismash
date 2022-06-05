@@ -105,9 +105,9 @@ pub async fn show_given_id(
 
                 Ok(jar)
             }
-        },
+        }
 
-        VTuberId::LastVisited(id) =>  {
+        VTuberId::LastVisited(id) => {
             let jar = jar
                 .add(cookie_util::create("last_visited", id))
                 .add(cookie_util::create("current", "none"));

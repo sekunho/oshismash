@@ -79,9 +79,7 @@ where
             },
         };
 
-        let guest_id = jar
-            .get("id")
-            .and_then(|c| Some(c.value().to_string()));
+        let guest_id = jar.get("id").and_then(|c| Some(c.value().to_string()));
 
         let max_visited = jar
             .get("max_visited")
@@ -92,7 +90,7 @@ where
             (Some(guest_id), Some(max_visited)) => Ok(ClientData {
                 vtuber_id,
                 guest_id,
-                max_visited
+                max_visited,
             }),
             (None, Some(max_visited)) => {
                 let client = db.pool.get().await?;
@@ -104,8 +102,8 @@ where
                         max_visited,
                     })
                 })
-            },
-            _ => Err(oshismash::Error::InvalidClientData)
+            }
+            _ => Err(oshismash::Error::InvalidClientData),
         }
     }
 }

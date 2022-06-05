@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::types::Type;
@@ -32,9 +30,19 @@ pub struct DbStack {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Stack {
-    NoPrev { current: VTuber, voted: Vec<i64> },
-    NoCurrent { prev_result: Stat, voted: Vec<i64> },
-    HasBoth { prev_result: Stat, current: VTuber, voted: Vec<i64> },
+    NoPrev {
+        current: VTuber,
+        voted: Vec<i64>,
+    },
+    NoCurrent {
+        prev_result: Stat,
+        voted: Vec<i64>,
+    },
+    HasBoth {
+        prev_result: Stat,
+        current: VTuber,
+        voted: Vec<i64>,
+    },
 }
 
 impl Stack {
@@ -42,10 +50,7 @@ impl Stack {
         match self {
             Stack::NoPrev { current, .. } => Some(current),
             Stack::NoCurrent { .. } => None,
-            Stack::HasBoth {
-                current,
-                ..
-            } => Some(current),
+            Stack::HasBoth { current, .. } => Some(current),
         }
     }
 
@@ -61,10 +66,7 @@ impl Stack {
         match self {
             Stack::NoPrev { .. } => None,
             Stack::NoCurrent { prev_result, .. } => Some(prev_result),
-            Stack::HasBoth {
-                prev_result,
-                ..
-            } => Some(prev_result),
+            Stack::HasBoth { prev_result, .. } => Some(prev_result),
         }
     }
 
@@ -93,7 +95,7 @@ impl TryFrom<DbStack> for Stack {
             DbStack {
                 current: None,
                 results: None,
-                voted: _
+                voted: _,
             } => Err(Error::NoData),
 
             DbStack {

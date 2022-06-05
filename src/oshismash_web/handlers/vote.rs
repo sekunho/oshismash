@@ -40,11 +40,11 @@ pub async fn vote(
                     .add(cookie_util::create("current", vtuber.id))
                     .add(cookie_util::create("last_visited", "none"));
 
-                    let jar = if vtuber.id > client_data.max_visited {
-                        jar.add(cookie_util::create("max_visited", vtuber.id))
-                    } else {
-                        jar
-                    };
+                let jar = if vtuber.id > client_data.max_visited {
+                    jar.add(cookie_util::create("max_visited", vtuber.id))
+                } else {
+                    jar
+                };
 
                 Ok((jar, stack))
             }
