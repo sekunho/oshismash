@@ -70,7 +70,7 @@ pub async fn show_given_id(
 
     let mut vote_list = stack.get_vote_list();
 
-    if let Some(id) = client_data.vtuber_id.get_current() {
+    if let Some(_id) = client_data.vtuber_id.get_current() {
         vote_list.dedup();
     }
 

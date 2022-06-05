@@ -9,11 +9,10 @@ use axum::{
 use deadpool_postgres::PoolError;
 use hyper::StatusCode;
 
-use crate::db;
-
+/// All (or most) of the possible errors that can happen in Oshi Smash.
 pub enum Error {
     UnableToQuery(tokio_postgres::Error),
-    FailedToSetupDb(db::Error),
+    FailedToSetupDb(deadpool_postgres::BuildError),
     InvalidGuest,
     PoolError(PoolError),
     FailedToParseVoteEntry,
@@ -33,8 +32,8 @@ impl From<tokio_postgres::Error> for Error {
     }
 }
 
-impl From<db::Error> for Error {
-    fn from(e: db::Error) -> Self {
+impl From<deadpool_postgres::BuildError> for Error {
+    fn from(e: deadpool_postgres::BuildError) -> Self {
         Error::FailedToSetupDb(e)
     }
 }

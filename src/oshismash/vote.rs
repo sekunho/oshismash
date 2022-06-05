@@ -196,7 +196,11 @@ pub async fn vote(
 
     println!("{:?}", val);
 
-    Ok(Stack::from_value(val)?)
+    let stack = Stack::from_value(val).ok_or(oshismash::Error::FailedToParseStack(
+        oshismash::vtubers::Error::ValueParseFailed,
+    ))?;
+
+    Ok(stack)
 }
 
 #[cfg(test)]
