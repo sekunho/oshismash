@@ -7,6 +7,7 @@ use maud::{html, Markup};
 
 use crate::db;
 use crate::oshismash_web::client_data::ClientData;
+use crate::oshismash_web::views;
 use crate::{
     oshismash::{
         self,
@@ -19,7 +20,8 @@ use crate::{
 pub async fn show_from_cookie(
     jar: cookie::CookieJar,
     client_data: ClientData,
-) -> Result<(StatusCode, HeaderMap, cookie::CookieJar), oshismash::Error> {
+    Extension(db_handle): Extension<Arc<db::Handle>>,
+) -> Result<(StatusCode, HeaderMap, cookie::CookieJar, Markup), oshismash::Error> {
     // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
     // Cookies:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
@@ -32,19 +34,39 @@ pub async fn show_from_cookie(
             .add(cookie_util::create("last_visited", id))
             .add(cookie_util::create("current", "none")),
     }
-    .add(cookie_util::create("id", client_data.guest_id));
+    .add(cookie_util::create("id", client_data.guest_id.clone()));
 
     let mut headers = HeaderMap::new();
 
-    // TODO: Replace placeholder URL with actual host
-    let url = match client_data.vtuber_id {
-        VTuberId::Current(id) => format!("http://localhost:3000/{}", id),
-        VTuberId::LastVisited(_) => "http://localhost:3000/touch-grass".to_string(),
-    };
+    match client_data.vtuber_id {
+        VTuberId::Current(id) => {
+            // TODO: Use app config to generate URL.
+            let url = format!("http://localhost:3000/{}", id);
+            headers.insert(LOCATION, url.parse().unwrap());
+            Ok((StatusCode::FOUND, headers, jar, html!{}))
+        },
+        VTuberId::LastVisited(_) => {
+            let client = db_handle.pool.get().await?;
 
-    headers.insert(LOCATION, url.parse().unwrap());
+            let stack = vtubers::get_vote_stack(
+                &client,
+                &client_data.vtuber_id,
+                client_data.guest_id.clone(),
+            ).await?;
 
-    Ok((StatusCode::FOUND, headers, jar))
+            let render = (
+                StatusCode::OK,
+                headers,
+                jar,
+                views::root::render(
+                    "Oshi Smash: Smash or Pass Your Oshis!",
+                    views::vote::render(stack),
+                )
+            );
+
+            Ok(render)
+        },
+    }
 }
 
 pub async fn show_given_id(

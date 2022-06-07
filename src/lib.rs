@@ -30,8 +30,6 @@ pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
         .merge(SpaRouter::new("/assets", "public"))
         // TODO: Remove this for an actual favicon
         .route("/favicon.ico", routing::get(handlers::vtuber::touch_grass))
-        // TODO: Maybe it'll be better to move this to `/` instead.
-        .route("/touch-grass", routing::get(handlers::vtuber::touch_grass))
         .route("/:vtuber_id", routing::get(handlers::vtuber::show_given_id))
         .layer(middleware.into_inner());
 
