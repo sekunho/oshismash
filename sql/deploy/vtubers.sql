@@ -144,8 +144,12 @@ BEGIN;
         ), voted_vtubers_cte AS (
           SELECT jsonb_agg(vtuber_id)
             FROM app.guest_votes
-            WHERE guest_votes.vtuber_id <= $2
-              AND guest_votes.guest_id = $3
+            WHERE guest_votes.guest_id = $3
+        ), vote_for_current_cte AS (
+          SELECT jsonb_agg(action)
+            FROM app.guest_votes
+            WHERE guest_votes.guest_id = $3
+              AND guest_votes.vtuber_id = $2
         )
         SELECT
           json_build_object
@@ -155,14 +159,17 @@ BEGIN;
             , prev_results_cte.jsonb_agg -> 0
             , 'voted'
             , coalesce(voted_vtubers_cte.jsonb_agg, '[]'::JSONB)
+            , 'vote_for_current'
+            , vote_for_current_cte.jsonb_agg -> 0
             )
           INTO data
-          FROM current_vtuber_cte, prev_results_cte, voted_vtubers_cte;
+          FROM current_vtuber_cte
+             , prev_results_cte
+             , voted_vtubers_cte
+             , vote_for_current_cte;
         RETURN data;
       END;
     $$;
-
-
 
   CREATE OR REPLACE FUNCTION app.get_vote_stack_from_previous
     ( prev_vtuber_id BIGINT

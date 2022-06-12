@@ -49,7 +49,9 @@ impl IntoResponse for Error {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Action {
+    #[serde(rename = "smashed")]
     Smashed,
+    #[serde(rename = "passed")]
     Passed,
 }
 

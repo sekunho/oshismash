@@ -4,6 +4,8 @@ use tokio_postgres::types::Type;
 
 use crate::oshismash::vote::Stat;
 
+use super::vote::Action;
+
 /// `oshismash::vtubers::Error` represents whatever error `oshismash::vtubers`
 /// might run into.
 #[derive(Debug)]
@@ -38,6 +40,8 @@ pub struct DbStack {
     results: Option<Stat>,
     /// List of VTuber IDs that were voted for.
     voted: Vec<i64>,
+    /// Action taken for the current VTuber
+    vote_for_current: Option<Action>,
 }
 
 /// `Stack` is everything that is needed to display things in the UI. There are
@@ -45,7 +49,11 @@ pub struct DbStack {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Stack {
     /// There's no previous VTuber. Representing the first VTuber entry.
-    NoPrev { current: VTuber, voted: Vec<i64> },
+    NoPrev {
+        current: VTuber,
+        voted: Vec<i64>,
+        vote_for_current: Option<Action>,
+    },
     /// No more VTuber to vote for! Representing no more VTuber entries.
     NoCurrent { prev_result: Stat, voted: Vec<i64> },
     /// Has both a previous and current VTuber entry.
@@ -53,6 +61,7 @@ pub enum Stack {
         prev_result: Stat,
         current: VTuber,
         voted: Vec<i64>,
+        vote_for_current: Option<Action>,
     },
 }
 
@@ -101,13 +110,14 @@ impl From<DbStack> for Option<Stack> {
             DbStack {
                 current: None,
                 results: None,
-                voted: _,
+                ..
             } => None,
 
             DbStack {
                 current: None,
                 results: Some(results),
                 voted,
+                ..
             } => Some(Stack::NoCurrent {
                 prev_result: results,
                 voted,
@@ -117,17 +127,20 @@ impl From<DbStack> for Option<Stack> {
                 current: Some(current),
                 results: Some(prev_result),
                 voted,
+                vote_for_current,
             } => Some(Stack::HasBoth {
                 prev_result,
                 current,
                 voted,
+                vote_for_current,
             }),
 
             DbStack {
                 current: Some(current),
                 results: None,
                 voted,
-            } => Some(Stack::NoPrev { current, voted }),
+                vote_for_current,
+            } => Some(Stack::NoPrev { current, voted, vote_for_current }),
         }
     }
 }

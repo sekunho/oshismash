@@ -3,6 +3,11 @@ use std::sync::Arc;
 use axum::Extension;
 use axum_extra::extract::cookie;
 use axum_extra::extract::CookieJar;
+use hyper::HeaderMap;
+use hyper::StatusCode;
+use hyper::header::LOCATION;
+use maud::Markup;
+use maud::html;
 
 use crate::db;
 use crate::oshismash;
@@ -18,7 +23,7 @@ pub async fn vote(
     client_data: ClientData,
     vote: Vote,
     jar: cookie::CookieJar,
-) -> Result<(CookieJar, Stack), oshismash::Error> {
+) -> Result<(StatusCode, HeaderMap, CookieJar, Markup), oshismash::Error> {
     // Guest is not allowed to vote if ever the max visited entry is less than
     // the target VTuber ID. But this assumes that the VTubers are in order.
     if client_data.max_visited < vote.vtuber_id {
@@ -26,6 +31,16 @@ pub async fn vote(
     } else {
         let db_client = db_handle.get_client().await?;
         let stack = oshismash::vote::vote(&db_client, vote.clone()).await?;
+
+        let vote_list = stack
+            .get_vote_list()
+            .into_iter()
+            .fold("".to_string(), |acc, vote| match acc.as_str() {
+                "" => vote.to_string(),
+                acc => format!("{},{}", acc, vote)
+            });
+
+        let jar = jar.add(cookie_util::create("voted", vote_list));
 
         // TODO(sekun): Move to middleware. I think it's possible.
         //
@@ -46,7 +61,12 @@ pub async fn vote(
                     jar
                 };
 
-                Ok((jar, stack))
+                let mut headers = HeaderMap::new();
+                // TODO: Refactor this
+                let url = format!("http://localhost:3000/{}", vtuber.id);
+                headers.insert(LOCATION, url.parse().unwrap());
+
+                Ok((StatusCode::FOUND, headers, jar, html! {}))
             }
             None => match client_data.vtuber_id {
                 VTuberId::Current(id) => {
@@ -54,7 +74,12 @@ pub async fn vote(
                         .add(cookie_util::create("last_visited", id))
                         .add(cookie_util::create("current", "none"));
 
-                    Ok((jar, stack))
+                    let mut headers = HeaderMap::new();
+
+                    // TODO: Refactor this
+                    headers.insert(LOCATION, "http://localhost:3000/".parse().unwrap());
+
+                    Ok((StatusCode::FOUND, headers, jar, html! {}))
                 }
                 VTuberId::LastVisited(_) => Err(oshismash::Error::InvalidClientData),
             },

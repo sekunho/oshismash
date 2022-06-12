@@ -2,7 +2,7 @@ use maud::{html, Markup};
 
 use crate::{
     oshismash::{
-        vote::Stat,
+        vote::{Stat, Action},
         vtubers::{Stack, VTuber},
     },
     oshismash_web::components::icon,
@@ -35,9 +35,18 @@ pub fn render(stack: Stack) -> Markup {
                     (next_vtuber(&stack))
                 // }
 
-                @if let Some(vtuber) = current_vtuber {
-                    (pass(vtuber))
-                    (smash(vtuber))
+                @match stack.clone() {
+                    Stack::NoPrev { current, vote_for_current, .. } => {
+                        (pass(&current, &vote_for_current))
+                        (smash(&current, &vote_for_current))
+                    }
+
+                    Stack::HasBoth { current, vote_for_current, .. } => {
+                        (pass(&current, &vote_for_current))
+                        (smash(&current, &vote_for_current))
+                    }
+
+                    Stack::NoCurrent { .. } => ("")
                 }
             }
 
@@ -179,39 +188,53 @@ fn next_button(vtuber_id: Option<i64>) -> Markup {
     }
 }
 
-fn smash(vtuber: &VTuber) -> Markup {
+fn smash(current_vtuber: &VTuber, current_vote: &Option<Action>) -> Markup {
+    // let voted = vote_list.into_raw_parts
     html! {
         form method="POST" action="/" {
             input class="hidden" type="text" name="action" value="smashed";
-            input class="hidden" type="text" name="vtuber_id" value=(vtuber.id);
+            input class="hidden" type="text" name="vtuber_id" value=(current_vtuber.id);
 
-            // button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-cyan-500 to-blue-500" {
-            //     p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::heart()) }
-            // }
-
-            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 border border-cyan-500 hover:border-0 hover:bg-gradient-to-t hover:from-cyan-500 hover:to-blue-500 text-cyan-500 hover:text-white" title="Smash" {
-                p class="mx-auto h-6 w-6 md:h-8 md:w-8 flex items-center justify-center" {
-                    (icon::heart())
+            @match current_vote {
+                Some(Action::Smashed) => {
+                    button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-cyan-500 to-blue-500" {
+                        p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::heart()) }
+                    }
                 }
+
+                _ => {
+                    button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 border border-cyan-500 hover:border-0 hover:bg-gradient-to-t hover:from-cyan-500 hover:to-blue-500 text-cyan-500 hover:text-white" title="Smash" {
+                        p class="mx-auto h-6 w-6 md:h-8 md:w-8 flex items-center justify-center" {
+                            (icon::heart())
+                        }
+                    }
+                },
             }
         }
     }
 }
 
-fn pass(vtuber: &VTuber) -> Markup {
+fn pass(current_vtuber: &VTuber, current_vote: &Option<Action>) -> Markup {
     html! {
         form method="POST" action="/" {
             input class="hidden" type="text" name="action" value="passed";
-            input class="hidden" type="text" name="vtuber_id" value=(vtuber.id);
+            input class="hidden" type="text" name="vtuber_id" value=(current_vtuber.id);
 
-            // button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-red-500 to-pink-500" {
-            //     p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::x()) }
-            // }
+            @match current_vote {
+                Some(Action::Passed) => {
+                    button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-red-500 to-pink-500" {
+                        p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::x()) }
+                    }
 
-            button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 border border-red-500 hover:border-0 hover:bg-gradient-to-t hover:from-red-500 hover:to-pink-500 text-red-500 hover:text-white" title="Pass" {
-                p class="mx-auto h-6 w-6 md:h-8 md:w-8 flex items-center justify-center" {
-                    (icon::x())
                 }
+
+                _ => {
+                    button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 border border-red-500 hover:border-0 hover:bg-gradient-to-t hover:from-red-500 hover:to-pink-500 text-red-500 hover:text-white" title="Pass" {
+                        p class="mx-auto h-6 w-6 md:h-8 md:w-8 flex items-center justify-center" {
+                            (icon::x())
+                        }
+                    }
+                },
             }
         }
     }
