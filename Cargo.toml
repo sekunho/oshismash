@@ -14,9 +14,15 @@ axum-extra = { version = "0.3", features = [ "cookie", "spa" ] }
 
 cookie = "0.16"
 
+# For the UUID domain type. Only using it to parse strings to UUID.
+uuid = "1.1"
+
 # Serialization/Deserialization
 serde = "1.0"
 serde_json = "1.0"
+
+# Better error thingies
+thiserror = "1.0"
 
 # Middleware
 tower = { version = "0.4", features = ["full"] }

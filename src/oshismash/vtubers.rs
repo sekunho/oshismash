@@ -2,18 +2,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::types::Type;
 
+use super::vote::UserAction;
 use crate::oshismash::vote::Stat;
-
-use super::vote::Action;
 
 /// `oshismash::vtubers::Error` represents whatever error `oshismash::vtubers`
 /// might run into.
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     /// If the JSON parsing failed
+    #[error("")]
     ValueParseFailed,
     /// Query does not give any data back
     /// Wasn't able to query the DB
+    #[error("")]
     FailedToQuery(tokio_postgres::Error),
 }
 
@@ -33,7 +34,7 @@ impl From<tokio_postgres::Error> for Error {
 
 /// The resulting intermediary type when parsing the DB's JSON data.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DbStack {
+struct DbStack {
     /// Current VTuber being voted for.
     current: Option<VTuber>,
     /// Results of the previously voted VTuber.
@@ -41,7 +42,7 @@ pub struct DbStack {
     /// List of VTuber IDs that were voted for.
     voted: Vec<i64>,
     /// Action taken for the current VTuber
-    vote_for_current: Option<Action>,
+    vote_for_current: Option<UserAction>,
 }
 
 /// `Stack` is everything that is needed to display things in the UI. There are
@@ -52,7 +53,7 @@ pub enum Stack {
     NoPrev {
         current: VTuber,
         voted: Vec<i64>,
-        vote_for_current: Option<Action>,
+        vote_for_current: Option<UserAction>,
     },
     /// No more VTuber to vote for! Representing no more VTuber entries.
     NoCurrent { prev_result: Stat, voted: Vec<i64> },
@@ -61,7 +62,7 @@ pub enum Stack {
         prev_result: Stat,
         current: VTuber,
         voted: Vec<i64>,
-        vote_for_current: Option<Action>,
+        vote_for_current: Option<UserAction>,
     },
 }
 

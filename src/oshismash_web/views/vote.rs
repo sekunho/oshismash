@@ -2,7 +2,7 @@ use maud::{html, Markup};
 
 use crate::{
     oshismash::{
-        vote::{Action, Stat},
+        vote::{Stat, UserAction},
         vtubers::{Stack, VTuber},
     },
     oshismash_web::components::icon,
@@ -188,7 +188,7 @@ fn next_button(vtuber_id: Option<i64>) -> Markup {
     }
 }
 
-fn smash(current_vtuber: &VTuber, current_vote: &Option<Action>) -> Markup {
+fn smash(current_vtuber: &VTuber, current_vote: &Option<UserAction>) -> Markup {
     // let voted = vote_list.into_raw_parts
     html! {
         form method="POST" action="/" {
@@ -196,7 +196,7 @@ fn smash(current_vtuber: &VTuber, current_vote: &Option<Action>) -> Markup {
             input class="hidden" type="text" name="vtuber_id" value=(current_vtuber.id);
 
             @match current_vote {
-                Some(Action::Smashed) => {
+                Some(UserAction::Smashed) => {
                     button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-cyan-500 to-blue-500" {
                         p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::heart()) }
                     }
@@ -214,14 +214,14 @@ fn smash(current_vtuber: &VTuber, current_vote: &Option<Action>) -> Markup {
     }
 }
 
-fn pass(current_vtuber: &VTuber, current_vote: &Option<Action>) -> Markup {
+fn pass(current_vtuber: &VTuber, current_vote: &Option<UserAction>) -> Markup {
     html! {
         form method="POST" action="/" {
             input class="hidden" type="text" name="action" value="passed";
             input class="hidden" type="text" name="vtuber_id" value=(current_vtuber.id);
 
             @match current_vote {
-                Some(Action::Passed) => {
+                Some(UserAction::Passed) => {
                     button class="shadow-md rounded-full h-12 w-12 md:h-14 md:w-14 bg-gradient-to-t from-red-500 to-pink-500" {
                         p class="mx-auto h-6 w-6 md:h-8 md:w-8 text-white flex items-center justify-center" { (icon::x()) }
                     }

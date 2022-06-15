@@ -1,21 +1,74 @@
 use std::sync::Arc;
 
-use axum::Extension;
-use axum_extra::extract::cookie;
-use axum_extra::extract::CookieJar;
+use axum::extract::{Form, FromRequest};
+use axum::{async_trait, BoxError, Extension};
+use axum_extra::extract::{cookie, CookieJar};
 use hyper::header::LOCATION;
-use hyper::HeaderMap;
-use hyper::StatusCode;
-use maud::html;
-use maud::Markup;
+use hyper::{HeaderMap, StatusCode};
+use maud::{html, Markup};
+use serde_json::Value;
 
-use crate::db;
-use crate::oshismash;
+use crate::oshismash::guests;
+use crate::oshismash::guests::GuestId;
+use crate::oshismash::vote::ParseError;
 use crate::oshismash::vote::Vote;
-use crate::oshismash::vtubers::Stack;
 use crate::oshismash::vtubers::VTuberId;
 use crate::oshismash_web::client_data::ClientData;
 use crate::oshismash_web::cookie_util;
+use crate::{db, oshismash};
+
+#[async_trait]
+impl<B> FromRequest<B> for Vote
+where
+    // Copied these trait bounds from
+    // https://docs.rs/axum/latest/axum/extract/struct.Form.html#impl-FromRequest%3CB%3E
+    B: Send + axum::body::HttpBody,
+    B::Data: Send,
+    B::Error: Into<BoxError>,
+{
+    type Rejection = oshismash::Error;
+
+    async fn from_request(
+        req: &mut axum::extract::RequestParts<B>,
+    ) -> Result<Self, Self::Rejection> {
+        let form_data = req.extract::<Form<Value>>().await;
+
+        let guest_id = req
+            .extract::<CookieJar>()
+            .await
+            .map_err(|_| ParseError::MissingField(String::from("guest_id")))
+            .and_then(|jar| {
+                jar.get("id")
+                    .and_then(|cookie| Some(GuestId(cookie.value().to_string())))
+                    .ok_or(ParseError::MissingField(String::from("guest_id")))
+            });
+
+        let db = req.extract::<Extension<Arc<db::Handle>>>().await;
+
+        // Hadouken'd :(
+        match (form_data, guest_id, db) {
+            (Ok(Form(Value::Object(mut form_data))), Ok(GuestId(guest_id)), Ok(db)) => {
+                match db.get_client().await {
+                    Ok(client) => match guests::is_valid(&client, guest_id.as_str()).await {
+                        Ok(true) => {
+                            form_data.insert(String::from("guest_id"), Value::String(guest_id));
+
+                            let result = Vote::from(Value::Object(form_data))?;
+                            Ok(result)
+                        }
+                        Ok(false) => Err(oshismash::Error::InvalidGuest),
+                        Err(e) => Err(e),
+                    },
+                    Err(e) => Err(oshismash::Error::from(e)),
+                }
+            }
+            (Ok(Form(_)), _, _) => Err(oshismash::Error::InvalidFormFormat),
+            (_, _, Err(_)) => Err(oshismash::Error::MissingExtension),
+            (_, Err(e), _) => Err(oshismash::Error::VoteParseError(e)),
+            (Err(e), _, _) => Err(oshismash::Error::InvalidForm(e)),
+        }
+    }
+}
 
 /// Handles the voting for a VTuber
 pub async fn vote(

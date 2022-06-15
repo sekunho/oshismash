@@ -1,45 +1,45 @@
-use std::sync::Arc;
-
-use axum::{
-    async_trait,
-    extract::{Form, FromRequest},
-    response::IntoResponse,
-    BoxError, Extension,
-};
-use axum_extra::extract::cookie::CookieJar;
+use axum::response::IntoResponse;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::types::Type;
+use uuid::Uuid;
 
-use super::{guests::GuestId, vtubers::Stack};
-use crate::{
-    db,
-    oshismash::{self, guests},
-};
+use super::vtubers::Stack;
 
 // TODO: Implement error
-#[derive(Debug)]
-pub enum Error {
-    InvalidVote,
-    InvalidAction,
-    MissingGuestId,
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum ParseError {
+    #[error("no such user vote action `{0}`")]
+    InvalidAction(String),
+    #[error("`{0}` has invalid format (expected integer)")]
+    InvalidVtuberIdFormat(String),
+    #[error("`{0}` has invalid format (expected UUID v4)")]
+    InvalidGuestIdFormat(String),
+    #[error("`{0}` field not found but is required")]
+    MissingField(String),
 }
 
-impl IntoResponse for Error {
+impl IntoResponse for ParseError {
     fn into_response(self) -> axum::response::Response {
+        // TODO: Move this out to `oshismash_web`
+        // TODO: Replace the text with an HTML template
         let res = match self {
-            Error::InvalidVote => (
-                StatusCode::BAD_REQUEST,
-                "Replace this with actual HTML template",
-            ),
-            Error::InvalidAction => (
+            ParseError::InvalidAction(_action) => (
                 StatusCode::BAD_REQUEST,
                 "Replace this with an actual HTML template",
             ),
-            Error::MissingGuestId => (
+            ParseError::MissingField(_) => (
                 StatusCode::BAD_REQUEST,
-                "replace this with an actual HTML template",
+                "Replace this with an actual HTML template",
+            ),
+            ParseError::InvalidVtuberIdFormat(_) => (
+                StatusCode::BAD_REQUEST,
+                "Replace this with an actual HTML template",
+            ),
+            ParseError::InvalidGuestIdFormat(_) => (
+                StatusCode::BAD_REQUEST,
+                "Replace this with an actual HTML template",
             ),
         };
 
@@ -47,19 +47,29 @@ impl IntoResponse for Error {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum VoteError {
+    #[error("failed to prepare vote query ({0})")]
+    QueryPrepFailed(tokio_postgres::Error),
+    #[error("unable to run the vote query ({0})")]
+    QueryFailed(tokio_postgres::Error),
+    #[error("the returning `Value` is not a valid `Stack`")]
+    InvalidDbValue,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub enum Action {
+pub enum UserAction {
     #[serde(rename = "smashed")]
     Smashed,
     #[serde(rename = "passed")]
     Passed,
 }
 
-impl Action {
-    fn from(action: &str) -> Option<Action> {
+impl UserAction {
+    fn from(action: &str) -> Option<UserAction> {
         match action {
-            "smashed" => Some(Action::Smashed),
-            "passed" => Some(Action::Passed),
+            "smashed" => Some(UserAction::Smashed),
+            "passed" => Some(UserAction::Passed),
             _ => None,
         }
     }
@@ -69,85 +79,45 @@ impl Action {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Vote {
     pub vtuber_id: i64,
-    pub guest_id: String,
-    pub action: Action,
+    pub guest_id: Uuid,
+    pub action: UserAction,
 }
 
 impl Vote {
-    pub fn from(val: Value) -> Result<Vote, Error> {
-        let vtuber_id = val
-            .get("vtuber_id")
-            .and_then(|a| a.as_str())
-            .and_then(|a| a.parse::<i64>().ok());
+    pub fn from(val: Value) -> Result<Vote, ParseError> {
+        let vtuber_id = val.get("vtuber_id").and_then(|a| a.as_str());
+
+        let vtuber_id = match vtuber_id {
+            Some(vtuber_id) => vtuber_id
+                .parse::<i64>()
+                .map_err(|_| ParseError::InvalidVtuberIdFormat(String::from(vtuber_id))),
+            None => Err(ParseError::MissingField(String::from("vtuber_id"))),
+        }?;
 
         let guest_id = val.get("guest_id").and_then(|a| a.as_str());
         let action = val.get("action").and_then(|a| a.as_str());
 
-        match (vtuber_id, guest_id, action) {
-            (Some(vtuber_id), Some(guest_id), Some(action)) => {
-                let action =
-                    Action::from(action).map_or_else(|| Err(Error::InvalidAction), |a| Ok(a))?;
+        match (guest_id, action) {
+            (Some(guest_id), Some(action)) => {
+                let action = UserAction::from(action).map_or_else(
+                    || Err(ParseError::InvalidAction(String::from(action))),
+                    |a| Ok(a),
+                )?;
+
+                let guest_id = Uuid::parse_str(guest_id)
+                    .map_err(|_| ParseError::InvalidGuestIdFormat(String::from(guest_id)))?;
 
                 let vote = Vote {
                     vtuber_id,
-                    guest_id: guest_id.to_string(),
+                    guest_id,
                     action,
                 };
 
                 Ok(vote)
             }
 
-            _ => Err(Error::InvalidVote),
-        }
-    }
-}
-
-#[async_trait]
-impl<B> FromRequest<B> for Vote
-where
-    // Copied these trait bounds from
-    // https://docs.rs/axum/latest/axum/extract/struct.Form.html#impl-FromRequest%3CB%3E
-    B: Send + axum::body::HttpBody,
-    B::Data: Send,
-    B::Error: Into<BoxError>,
-{
-    type Rejection = oshismash::Error;
-
-    async fn from_request(
-        req: &mut axum::extract::RequestParts<B>,
-    ) -> Result<Self, Self::Rejection> {
-        let form_data = req.extract::<Form<Value>>().await;
-
-        let guest_id = req
-            .extract::<CookieJar>()
-            .await
-            .map_err(|_| Error::MissingGuestId)
-            .and_then(|jar| {
-                jar.get("id")
-                    .and_then(|cookie| Some(GuestId(cookie.value().to_string())))
-                    .ok_or(Error::MissingGuestId)
-            });
-
-        let db = req.extract::<Extension<Arc<db::Handle>>>().await;
-
-        // Hadouken'd :(
-        match (form_data, guest_id, db) {
-            (Ok(Form(Value::Object(mut form_data))), Ok(GuestId(guest_id)), Ok(db)) => {
-                match db.get_client().await {
-                    Ok(client) => match guests::is_valid(&client, guest_id.as_str()).await {
-                        Ok(true) => {
-                            form_data.insert(String::from("guest_id"), Value::String(guest_id));
-
-                            let result = Vote::from(Value::Object(form_data))?;
-                            Ok(result)
-                        }
-                        Ok(false) => Err(oshismash::Error::InvalidGuest),
-                        Err(e) => Err(e),
-                    },
-                    Err(e) => Err(oshismash::Error::from(e)),
-                }
-            }
-            (_, _, _) => Err(oshismash::Error::FailedToParseVoteEntry),
+            (None, _) => Err(ParseError::MissingField(String::from("guest_id"))),
+            (_, None) => Err(ParseError::MissingField(String::from("action"))),
         }
     }
 }
@@ -165,10 +135,10 @@ pub struct Stat {
 pub async fn vote(
     client: &deadpool_postgres::Object,
     vote_entry: Vote,
-) -> Result<Stack, oshismash::Error> {
+) -> Result<Stack, VoteError> {
     let action = match vote_entry.action {
-        Action::Smashed => "smashed",
-        Action::Passed => "passed",
+        UserAction::Smashed => "smashed",
+        UserAction::Passed => "passed",
     };
 
     println!("Vote Entry: {:?}", vote_entry);
@@ -181,49 +151,116 @@ pub async fn vote(
         .await
         .map_err(|e| {
             println!("{e}");
-            oshismash::Error::from(e)
+            VoteError::QueryPrepFailed(e)
         })?;
 
     let val: Value = client
         .query_one(
             &vote_statement,
-            &[&vote_entry.guest_id, &vote_entry.vtuber_id, &action],
+            &[
+                &vote_entry.guest_id.to_string(),
+                &vote_entry.vtuber_id,
+                &action,
+            ],
         )
         .await
         .map_err(|e| {
             println!("{e}");
-            oshismash::Error::from(e)
+            VoteError::QueryFailed(e)
         })?
         .get("vote");
 
     println!("{:?}", val);
 
-    let stack = Stack::from_value(val).ok_or(oshismash::Error::FailedToParseStack(
-        oshismash::vtubers::Error::ValueParseFailed,
-    ))?;
+    let stack = Stack::from_value(val).ok_or(VoteError::InvalidDbValue)?;
 
     Ok(stack)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Action, Vote};
+    use super::{ParseError, UserAction, Vote};
     use serde_json::json;
+    use uuid::Uuid;
 
     #[test]
     fn valid_json_vote() {
-        let vote = json!({
+        let guest_id = Uuid::parse_str("0b76fdde-9910-402d-b7c2-97c02247b5fd").unwrap();
+        let vote_passed = json!({
             "vtuber_id": "1",
             "guest_id": "0b76fdde-9910-402d-b7c2-97c02247b5fd",
             "action": "passed"
         });
 
-        let expected = Vote {
+        let vote_smashed = json!({
+            "vtuber_id": "1",
+            "guest_id": "0b76fdde-9910-402d-b7c2-97c02247b5fd",
+            "action": "smashed"
+        });
+
+        let expected_passed = Vote {
             vtuber_id: 1,
-            guest_id: "0b76fdde-9910-402d-b7c2-97c02247b5fd".to_string(),
-            action: Action::Passed,
+            guest_id,
+            action: UserAction::Passed,
         };
 
-        assert!(Vote::from(vote).unwrap() == expected);
+        let expected_smashed = Vote {
+            vtuber_id: 1,
+            guest_id,
+            action: UserAction::Smashed,
+        };
+
+        assert!(Vote::from(vote_passed).unwrap() == expected_passed);
+        assert!(Vote::from(vote_smashed).unwrap() == expected_smashed);
+    }
+
+    #[test]
+    fn mispelled_vote_action() {
+        // Mispelled vote action
+        let vote_a = json!({
+            "vtuber_id": "1",
+            "guest_id": "0b76fdde-9910-402d-b7c2-97c02247b5fd",
+            "action": "smashe"
+        });
+
+        let vote_b = json!({
+            "vtuber_id": "1",
+            "guest_id": "0b76fdde-9910-402d-b7c2-97c02247b5fd",
+            "action": "pasxed"
+        });
+
+        assert!(Vote::from(vote_a) == Err(ParseError::InvalidAction("smashe".to_string())));
+        assert!(Vote::from(vote_b) == Err(ParseError::InvalidAction("pasxed".to_string())));
+    }
+
+    #[test]
+    fn missing_fields_in_vote() {
+        let vote_with_missing_action = json!({
+            "vtuber_id": "1",
+            "guest_id": "0b76fdde-9910-402d-b7c2-97c02247b5fd",
+        });
+
+        let vote_with_missing_vtuber_id = json!({
+            "guest_id": "0b76fdde-9910-402d-b7c2-97c02247b5fd",
+            "action": "smashed"
+        });
+
+        let vote_with_missing_guest_id = json!({
+            "vtuber_id": "1",
+            "action": "smashed"
+        });
+
+        assert!(
+            Vote::from(vote_with_missing_action)
+                == Err(ParseError::MissingField("action".to_string()))
+        );
+        assert!(
+            Vote::from(vote_with_missing_vtuber_id)
+                == Err(ParseError::MissingField("vtuber_id".to_string()))
+        );
+        assert!(
+            Vote::from(vote_with_missing_guest_id)
+                == Err(ParseError::MissingField("guest_id".to_string()))
+        );
     }
 }
