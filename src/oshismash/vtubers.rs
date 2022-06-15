@@ -140,7 +140,11 @@ impl From<DbStack> for Option<Stack> {
                 results: None,
                 voted,
                 vote_for_current,
-            } => Some(Stack::NoPrev { current, voted, vote_for_current }),
+            } => Some(Stack::NoPrev {
+                current,
+                voted,
+                vote_for_current,
+            }),
         }
     }
 }
@@ -179,21 +183,13 @@ pub async fn get_vote_stack(
     guest_id: String,
 ) -> Result<Stack, Error> {
     let value = match vtuber_id {
-        VTuberId::LastVisited(id) => {
-            query_vote_stack_from_previous(client, *id, guest_id)
-                .await
-                .and_then(|row| {
-                    Ok(row.get::<&str, Value>("get_vote_stack_from_previous"))
-                })
-        }
+        VTuberId::LastVisited(id) => query_vote_stack_from_previous(client, *id, guest_id)
+            .await
+            .and_then(|row| Ok(row.get::<&str, Value>("get_vote_stack_from_previous"))),
 
-        VTuberId::Current(id) => {
-            query_vote_stack_from_current(client, *id, guest_id)
-                .await
-                .and_then(|row| {
-                    Ok(row.get::<&str, Value>("get_vote_stack_from_current"))
-                })
-        }
+        VTuberId::Current(id) => query_vote_stack_from_current(client, *id, guest_id)
+            .await
+            .and_then(|row| Ok(row.get::<&str, Value>("get_vote_stack_from_current"))),
     }?;
 
     Stack::from_value(value).ok_or(Error::ValueParseFailed)

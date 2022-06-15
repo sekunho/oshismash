@@ -3,11 +3,11 @@ use std::sync::Arc;
 use axum::Extension;
 use axum_extra::extract::cookie;
 use axum_extra::extract::CookieJar;
+use hyper::header::LOCATION;
 use hyper::HeaderMap;
 use hyper::StatusCode;
-use hyper::header::LOCATION;
-use maud::Markup;
 use maud::html;
+use maud::Markup;
 
 use crate::db;
 use crate::oshismash;
@@ -32,13 +32,14 @@ pub async fn vote(
         let db_client = db_handle.get_client().await?;
         let stack = oshismash::vote::vote(&db_client, vote.clone()).await?;
 
-        let vote_list = stack
-            .get_vote_list()
-            .into_iter()
-            .fold("".to_string(), |acc, vote| match acc.as_str() {
-                "" => vote.to_string(),
-                acc => format!("{},{}", acc, vote)
-            });
+        let vote_list =
+            stack
+                .get_vote_list()
+                .into_iter()
+                .fold("".to_string(), |acc, vote| match acc.as_str() {
+                    "" => vote.to_string(),
+                    acc => format!("{},{}", acc, vote),
+                });
 
         let jar = jar.add(cookie_util::create("voted", vote_list));
 

@@ -43,8 +43,8 @@ pub async fn show_from_cookie(
             // TODO: Use app config to generate URL.
             let url = format!("http://localhost:3000/{}", id);
             headers.insert(LOCATION, url.parse().unwrap());
-            Ok((StatusCode::FOUND, headers, jar, html!{}))
-        },
+            Ok((StatusCode::FOUND, headers, jar, html! {}))
+        }
         VTuberId::LastVisited(_) => {
             let client = db_handle.pool.get().await?;
 
@@ -52,7 +52,8 @@ pub async fn show_from_cookie(
                 &client,
                 &client_data.vtuber_id,
                 client_data.guest_id.clone(),
-            ).await?;
+            )
+            .await?;
 
             let render = (
                 StatusCode::OK,
@@ -61,11 +62,11 @@ pub async fn show_from_cookie(
                 views::root::render(
                     "Oshi Smash: Smash or Pass Your Oshis!",
                     views::vote::render(stack),
-                )
+                ),
             );
 
             Ok(render)
-        },
+        }
     }
 }
 

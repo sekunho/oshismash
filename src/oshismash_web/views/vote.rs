@@ -2,7 +2,7 @@ use maud::{html, Markup};
 
 use crate::{
     oshismash::{
-        vote::{Stat, Action},
+        vote::{Action, Stat},
         vtubers::{Stack, VTuber},
     },
     oshismash_web::components::icon,
