@@ -122,7 +122,7 @@ impl Vote {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Stat {
     pub vtuber_id: i64,
     pub name: String,

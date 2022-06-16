@@ -47,7 +47,7 @@ struct DbStack {
 
 /// `Stack` is everything that is needed to display things in the UI. There are
 /// different outcomes that would yield slightly different UI.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Stack {
     /// There's no previous VTuber. Representing the first VTuber entry.
     NoPrev {
@@ -150,7 +150,7 @@ impl From<DbStack> for Option<Stack> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct VTuber {
     pub id: i64,
     pub name: String,
@@ -193,6 +193,8 @@ pub async fn get_vote_stack(
             .and_then(|row| Ok(row.get::<&str, Value>("get_vote_stack_from_current"))),
     }?;
 
+    println!("{:?}", value);
+
     Stack::from_value(value).ok_or(Error::ValueParseFailed)
 }
 
@@ -228,4 +230,179 @@ async fn query_vote_stack_from_current(
     client
         .query_one(&statement, &[&current_vtuber_id, &guest_id])
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{json, Value};
+
+    use super::Stack;
+    use crate::oshismash::{
+        vote::{Stat, UserAction},
+        vtubers::VTuber,
+    };
+
+    fn mock_has_current_no_prev() -> Value {
+        json!({
+            "current": {
+                "description": "A weirdo",
+                "id": 1,
+                "img": "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png",
+                "name": "Nyatasha Nyanners",
+                "next": 2,
+                "org_name": "VShojo",
+                "prev": Value::Null,
+            },
+            "results": Value::Null,
+            "vote_for_current": "smashed",
+            "voted": json!([1, 2, 3, 4])
+        })
+    }
+
+    fn mock_has_none_in_both() -> Value {
+        json!({
+            "current": Value::Null,
+            "results": Value::Null,
+            "vote_for_current": "smashed",
+            "voted": [1, 2, 3, 4]
+        })
+    }
+
+    fn mock_has_prev_no_current() -> Value {
+        json!({
+            "current": Value::Null,
+            "results": {
+                "vtuber_id": 2,
+                "name": "Veibae",
+                "description": "A weirdo",
+                "img": "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png",
+                "next": 3,
+                "prev": 1,
+                "smashes": 4,
+                "passes": 1,
+            },
+            "vote_for_current": "smashed",
+            "voted": [1, 2, 3, 4]
+        })
+    }
+
+    fn mock_has_both() -> Value {
+        json!({
+            "current": {
+                "description": "A weirdo",
+                "id": 1,
+                "img": "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png",
+                "name": "Nyatasha Nyanners",
+                "next": 2,
+                "org_name": "VShojo",
+                "prev": Value::Null,
+            },
+            "results": {
+                "vtuber_id": 2,
+                "name": "Veibae",
+                "description": "A weirdo",
+                "img": "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png",
+                "next": 3,
+                "prev": 1,
+                "smashes": 4,
+                "passes": 1,
+            },
+            "vote_for_current": "smashed",
+            "voted": [1, 2, 3, 4]
+        })
+    }
+
+    #[test]
+    fn parse_has_current_no_prev() {
+        let found = Stack::from_value(mock_has_current_no_prev());
+        let voted_ids: Vec<i64> = Vec::from([1, 2, 3, 4]);
+
+        assert_eq!(found.clone().unwrap().get_vote_list(), voted_ids);
+
+        assert_eq!(
+            found.clone().unwrap(),
+            Stack::NoPrev {
+                current: VTuber {
+                    id: 1,
+                    name: "Nyatasha Nyanners".to_string(),
+                    description: "A weirdo".to_string(),
+                    org_name: "VShojo".to_string(),
+                    next: Some(2),
+                    prev: None,
+                    img: "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png"
+                        .to_string(),
+                },
+                voted: voted_ids,
+                vote_for_current: Some(UserAction::Smashed)
+            }
+        );
+    }
+
+    #[test]
+    fn parse_has_prev_no_current() {
+        let found = Stack::from_value(mock_has_prev_no_current());
+        let voted_ids: Vec<i64> = Vec::from([1, 2, 3, 4]);
+
+        assert_eq!(found.clone().unwrap().get_vote_list(), voted_ids);
+
+        assert_eq!(
+            found.clone().unwrap(),
+            Stack::NoCurrent {
+                prev_result: Stat {
+                    vtuber_id: 2,
+                    name: "Veibae".to_string(),
+                    img: Some(
+                        "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png"
+                            .to_string()
+                    ),
+                    smashes: 4,
+                    passes: 1,
+                },
+                voted: voted_ids,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_has_both() {
+        let found = Stack::from_value(mock_has_both());
+        let voted_ids: Vec<i64> = Vec::from([1, 2, 3, 4]);
+
+        assert_eq!(found.clone().unwrap().get_vote_list(), voted_ids);
+
+        assert_eq!(
+            found.clone().unwrap(),
+            Stack::HasBoth {
+                prev_result: Stat {
+                    vtuber_id: 2,
+                    name: "Veibae".to_string(),
+                    img: Some(
+                        "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png"
+                            .to_string()
+                    ),
+                    smashes: 4,
+                    passes: 1,
+                },
+                current: VTuber {
+                    id: 1,
+                    name: "Nyatasha Nyanners".to_string(),
+                    description: "A weirdo".to_string(),
+                    org_name: "VShojo".to_string(),
+                    next: Some(2),
+                    prev: None,
+                    img: "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png"
+                        .to_string(),
+                },
+                voted: voted_ids,
+                vote_for_current: Some(UserAction::Smashed)
+            }
+        );
+    }
+
+    #[test]
+    fn parsing_null_in_both_fails() {
+        let found = Stack::from_value(mock_has_none_in_both());
+
+        assert!(found.clone().is_none());
+    }
 }
