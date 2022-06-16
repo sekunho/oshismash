@@ -114,7 +114,7 @@ fn card(vtuber: &VTuber) -> Markup {
                         }
 
                         span class="text-white text-lg" {
-                            (vtuber.org_name)
+                            (vtuber.org_name.to_string())
                         }
                     }
 

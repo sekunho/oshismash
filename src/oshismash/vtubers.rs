@@ -151,11 +151,31 @@ impl From<DbStack> for Option<Stack> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum Org {
+    #[serde(rename = "VShojo")]
+    Vshojo,
+    #[serde(rename = "Hololive")]
+    Hololive,
+    #[serde(rename = "Nijisanji")]
+    Nijisanji,
+}
+
+impl ToString for Org {
+    fn to_string(&self) -> String {
+        match *self {
+            Org::Vshojo => String::from("Vshojo"),
+            Org::Hololive => String::from("Hololive"),
+            Org::Nijisanji => String::from("NIJISANJI"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct VTuber {
     pub id: i64,
     pub name: String,
     pub description: String,
-    pub org_name: String,
+    pub org_name: Org,
     pub next: Option<i64>,
     pub prev: Option<i64>,
     pub img: String,
@@ -239,7 +259,7 @@ mod tests {
     use super::Stack;
     use crate::oshismash::{
         vote::{Stat, UserAction},
-        vtubers::VTuber,
+        vtubers::{VTuber, Org},
     };
 
     fn mock_has_current_no_prev() -> Value {
@@ -326,7 +346,7 @@ mod tests {
                     id: 1,
                     name: "Nyatasha Nyanners".to_string(),
                     description: "A weirdo".to_string(),
-                    org_name: "VShojo".to_string(),
+                    org_name: Org::Vshojo,
                     next: Some(2),
                     prev: None,
                     img: "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png"
@@ -387,7 +407,7 @@ mod tests {
                     id: 1,
                     name: "Nyatasha Nyanners".to_string(),
                     description: "A weirdo".to_string(),
-                    org_name: "VShojo".to_string(),
+                    org_name: Org::Vshojo,
                     next: Some(2),
                     prev: None,
                     img: "https://www.vshojo.com/wp-content/uploads/nyanners-full_solo.png"
