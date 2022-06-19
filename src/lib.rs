@@ -26,6 +26,7 @@ pub async fn run(db_handle: db::Handle) -> Result<(), hyper::Error> {
     let app = Router::new()
         .route("/", routing::get(handlers::vtuber::show_from_cookie))
         .route("/", routing::post(handlers::vote::vote))
+        .route("/settings", routing::get(handlers::settings::show))
         // .route("/rpc/vote", routing::post(handlers::vote::rpc_vote))
         .merge(SpaRouter::new("/assets", "public"))
         .route("/:vtuber_id", routing::get(handlers::vtuber::show_given_id))
