@@ -51,7 +51,20 @@ pub fn render(stack: Stack) -> Markup {
             }
 
             @if let Some(stat) = stack.get_last_voted_stat() {
-                span class="hidden md:block dark:text-su-dark-fg-1 mt-6" { (format!("What others voted for {}", stat.name)) }
+                span class="mt-6 text-center" {
+                    span class="inline md:hidden dark:text-su-dark-fg-1" {
+                        (format!("Results for {} ", stat.name))
+                    }
+
+                    span class="hidden md:inline dark:text-su-dark-fg-1" {
+                        (format!("What others voted for {} ", stat.name))
+                    }
+
+
+                    a href="#" class="text-cyan-500" {
+                        (format!("(View all)"))
+                    }
+                }
                 div class="flex justify-center space-x-2 w-full sm:w-2/3 md:w-1/3 mt-4 dark:text-su-dark-fg-1" {
                     div class="flex flex-col w-full items-end" {
                         span class="text-sm md:text-base font-bold mb-1 md:mb-2.5 text-right" { ("Passes") }
