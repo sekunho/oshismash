@@ -124,14 +124,8 @@ BEGIN;
                 , vtubers.vtuber_id
                 , 'name'
                 , vtubers.name
-                , 'description'
-                , vtubers.description
                 , 'img'
                 , vtubers.img
-                , 'next'
-                , vtubers.next
-                , 'prev'
-                , vtubers.prev
                 , 'smashes'
                 , metrics.smashes
                 , 'passes'
@@ -234,4 +228,26 @@ BEGIN;
 
     COMMENT ON FUNCTION app.vote IS
       'Votes on a VTuber depending on what the action is.';
+
+  CREATE OR REPLACE FUNCTION app.get_vtuber_results(vtuber_id BIGINT)
+    RETURNS JSONB
+    LANGUAGE SQL
+    AS $$
+      SELECT
+        json_build_object
+          ( 'vtuber_id'
+          , vtubers.vtuber_id
+          , 'name'
+          , vtubers.name
+          , 'img'
+          , vtubers.img
+          , 'smashes'
+          , metrics.smashes
+          , 'passes'
+          , metrics.passes
+          )
+        FROM app.vtubers AS vtubers
+           , app.get_metrics(vtuber_id) AS metrics
+        WHERE vtubers.vtuber_id = get_vtuber_results.vtuber_id;
+    $$;
 COMMIT;
