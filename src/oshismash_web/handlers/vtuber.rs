@@ -144,6 +144,6 @@ pub async fn show_given_id(
     Ok((jar, stack))
 }
 
-pub async fn touch_grass() -> (StatusCode, Markup) {
-    (StatusCode::OK, html! { "go touch some grass man" })
+pub async fn details() -> Result<(), oshismash::Error> {
+    Ok(())
 }
