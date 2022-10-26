@@ -5,7 +5,7 @@ use axum_extra::extract::cookie;
 use hyper::{header::LOCATION, HeaderMap, StatusCode};
 use maud::{html, Markup};
 
-use crate::db;
+use crate::{db, config};
 use crate::oshismash_web::client_data::ClientData;
 use crate::oshismash_web::views;
 use crate::{
@@ -21,6 +21,7 @@ pub async fn show_from_cookie(
     jar: cookie::CookieJar,
     client_data: ClientData,
     Extension(db_handle): Extension<Arc<db::Handle>>,
+    Extension(app_config): Extension<Arc<config::AppConfig>>
 ) -> Result<(StatusCode, HeaderMap, cookie::CookieJar, Markup), oshismash::Error> {
     // NOTE: Am I supposed to move the cookie stuff to `tower`/middleware?
     // Cookies:
@@ -41,7 +42,7 @@ pub async fn show_from_cookie(
     match client_data.vtuber_id {
         VTuberId::Current(id) => {
             // TODO: Use app config to generate URL.
-            let url = format!("http://localhost:3000/{}", id);
+            let url = format!("{}/{}", app_config.base_url(), id);
             headers.insert(LOCATION, url.parse().unwrap());
             Ok((StatusCode::FOUND, headers, jar, html! {}))
         }
