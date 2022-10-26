@@ -83,7 +83,7 @@ impl AppConfig {
         if self.host == "localhost" {
             format!("http://localhost:{}", self.port)
         } else {
-            format!("https://{}:{}", self.host, self.port)
+            format!("https://{}", self.host)
         }
     }
 
