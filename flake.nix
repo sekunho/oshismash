@@ -21,8 +21,11 @@
 
           nodePackages.tailwindcss
 
+          # Databse
           sqitchPg
           perl534Packages.TAPParserSourceHandlerpgTAP
+          pkg-config
+          openssl
         ];
       };
 

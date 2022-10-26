@@ -15,7 +15,7 @@ use crate::oshismash::vote::Vote;
 use crate::oshismash::vtubers::VTuberId;
 use crate::oshismash_web::client_data::ClientData;
 use crate::oshismash_web::cookie_util;
-use crate::{db, oshismash};
+use crate::{db, oshismash, config};
 
 #[async_trait]
 impl<B> FromRequest<B> for Vote
@@ -48,7 +48,7 @@ where
         // Hadouken'd :(
         match (form_data, guest_id, db) {
             (Ok(Form(Value::Object(mut form_data))), Ok(GuestId(guest_id)), Ok(db)) => {
-                match db.get_client().await {
+                match db.client().await {
                     Ok(client) => match guests::is_valid(&client, guest_id.as_str()).await {
                         Ok(true) => {
                             form_data.insert(String::from("guest_id"), Value::String(guest_id));
@@ -73,6 +73,7 @@ where
 /// Handles the voting for a VTuber
 pub async fn vote(
     Extension(db_handle): Extension<Arc<db::Handle>>,
+    Extension(app_config): Extension<Arc<config::AppConfig>>,
     client_data: ClientData,
     vote: Vote,
     jar: cookie::CookieJar,
@@ -82,7 +83,7 @@ pub async fn vote(
     if client_data.max_visited < vote.vtuber_id {
         Err(oshismash::Error::NotAllowedToVote)
     } else {
-        let db_client = db_handle.get_client().await?;
+        let db_client = db_handle.client().await?;
         let stack = oshismash::vote::vote(&db_client, vote.clone()).await?;
 
         let vote_list =
@@ -117,7 +118,8 @@ pub async fn vote(
 
                 let mut headers = HeaderMap::new();
                 // TODO: Refactor this
-                let url = format!("http://localhost:3000/{}", vtuber.id);
+                let url = format!("{}/{}", app_config.base_url(), vtuber.id);
+
                 headers.insert(LOCATION, url.parse().unwrap());
 
                 Ok((StatusCode::FOUND, headers, jar, html! {}))
@@ -131,7 +133,7 @@ pub async fn vote(
                     let mut headers = HeaderMap::new();
 
                     // TODO: Refactor this
-                    headers.insert(LOCATION, "http://localhost:3000/".parse().unwrap());
+                    headers.insert(LOCATION, app_config.base_url().parse().unwrap());
 
                     Ok((StatusCode::FOUND, headers, jar, html! {}))
                 }
