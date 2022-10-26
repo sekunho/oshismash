@@ -33,7 +33,7 @@ pub async fn run(config: config::AppConfig, db_handle: db::Handle) -> Result<(),
         .route("/", routing::post(handlers::vote::vote))
         // .route("/api/vtuber/:vtuber_id", handlers::vtuber::results)
         // .route("/rpc/vote", routing::post(handlers::vote::rpc_vote))
-        .merge(SpaRouter::new("/assets", "public"))
+        .merge(SpaRouter::new("/assets", config.static_assets_path))
         .route("/:vtuber_id", routing::get(handlers::vtuber::show_given_id))
         .layer(middleware.into_inner());
 
